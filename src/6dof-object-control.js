@@ -14,10 +14,10 @@
  *   with no impact on the target object.
  *
  * In terms of code, there are 2 key components:
- * - 6dof-object-control is a component configured on the object to be
+ * - sixdof-object-control is a component configured on the object to be
  *   controlled, the "Target".  It has to be configured with the ID of the
  *   proxy object.
- * - 6dof-control-proxy is a component configured on the entity representing
+ * - sixdof-control-proxy is a component configured on the entity representing
  *    the proxy object.  It has to be configured with the IDs of both the Target
  *    object & the Controller entity.
  *
@@ -27,14 +27,46 @@
 
 /* This component is configured on the Target
  * with config indicating the proxy */
-AFRAME.registerComponent('6dof-object-control', {
+AFRAME.registerComponent('sixdof-object-control', {
 
+/* proxy: the ID another object that is used as a proxy controller for this
+*         target object.
+* logger: the ID of a text object to log debug info to.
+* debug:  enables additional diags.
+* posunit: the minimum unit of positional movement in m.  So 0.1 = 10cm.
+*          Should be positive & non-zero - e.g. 0.001 for smooth movement.
+*          Note that small values can lead to very large numbers of movement
+*          events (if enabled) - which could cause performance issues.
+* rotunit: the minimum unit of rotational movement in degrees.
+*          Should be positive & non-zero - e.g. 0.1 for smooth movement.
+*          Note that small values can lead to very large numbers of movement
+*          events (if enabled) - which could cause performance issues.
+* movement: one of: "direct", "events" or "both":
+*          direct: the Target object is moved directly by this component.
+*          events: the Target object emits events, which can be acted on by
+*                  another component to effect movement.  This allows for
+*                  interpolation of collision detection & other factors.
+*          both: the Target object is moved directly, but events are also
+                 generated.
+*          Note that "events" or "both" movement combined with small values for rotunit
+*          or posunit leads to a very large number of generated events.
+*
+*          Events emitted are:
+*          move: A positional update that includes x, y & z components.
+*                 Event data includes details of the x, y & z components.
+*                 This is an absolute new position, not a delta.
+*          rotate: A rotational update that includes rotation in up to 3 axes.
+*                 Event data includes both the Euler Angles & the Quaternion
+*                 representation of the rotation.
+*                 This is an absolute new rotation (from zero), not a delta.
+*/
   schema: {
     proxy:      {type: 'string', default: "#target-proxy"},
     logger:     {type: 'string', default: "#log-panel"},
     debug:      {type: 'boolean', default: false},
     posunit:    {type: 'number', default: 0.1},
     rotunit:    {type: 'number', default: 90},
+    movement:    {type: 'string', default: "events"}
   },
 
   init: function () {
@@ -51,6 +83,7 @@ AFRAME.registerComponent('6dof-object-control', {
     // into the game engine.
     this.lastReportedPosition = {'x': 0, 'y': 0, 'z': 0};
     this.lastReportedRotation = {'x': 0, 'y': 0, 'z': 0};
+
     copyXYZ(this.el.object3D.position, this.lastReportedPosition);
     copyXYZ(this.el.object3D.rotation, this.lastReportedRotation);
 
@@ -68,6 +101,13 @@ AFRAME.registerComponent('6dof-object-control', {
 
     // Store reference to proxy.
     this.proxy = document.querySelector(this.data.proxy)
+
+    // Store flags to represent configured movement style.
+    this.moveTarget = ((this.data.movement == "direct") ||
+                       (this.data.movement == "both"));
+    this.emitEvents = ((this.data.movement == "events") ||
+                       (this.data.movement == "both"));
+
   },
 
   attachEventListeners: function () {
@@ -126,23 +166,30 @@ AFRAME.registerComponent('6dof-object-control', {
       const zr = this.proxy.object3D.rotation.z;
 
       // The orientation of the target is the same as the proxy
-      // but snapped to a position grid, and rotations of 90 degrees.
+      // but snapped to a position grid, and rotations of fixed values
+      // (e.g. 90 degrees, which is the default).
       // The offset is the (fixed) offset from the target to the proxy.
+      //
+      // The positions calculated here are absolute new posiitons, not deltas.
       const sx = this.targetPositionFromProxy(x, this.offset.x);
       const sy = this.targetPositionFromProxy(y, this.offset.y);
       const sz = this.targetPositionFromProxy(z, this.offset.z);
 
-      this.el.object3D.position.x = sx;
-      this.el.object3D.position.y = sy;
-      this.el.object3D.position.z = sz;
-
+      // Rotation elements are absolute positions (rotation from base state).
       const sxr = this.targetRotationFromProxy(xr);
       const syr = this.targetRotationFromProxy(yr);
       const szr = this.targetRotationFromProxy(zr);
 
-      this.el.object3D.rotation.x = sxr;
-      this.el.object3D.rotation.y = syr;
-      this.el.object3D.rotation.z = szr;
+      // Now apply the rotation (if we are in "direct" mode)
+      if (this.moveTarget) {
+        this.el.object3D.position.x = sx;
+        this.el.object3D.position.y = sy;
+        this.el.object3D.position.z = sz;
+
+        this.el.object3D.rotation.x = sxr;
+        this.el.object3D.rotation.y = syr;
+        this.el.object3D.rotation.z = szr;
+      }
 
       if (this.data.debug) {
         logtext += logXYZ("Target: ", this.el.object3D.position, 2);
@@ -153,8 +200,11 @@ AFRAME.registerComponent('6dof-object-control', {
       }
 
       // Emit events for any changes to rotation or position.
-      var posChanged = this.reportChangesToPosition(sx, sy, sz);
-      var rotChanged = this.reportChangesToRotation(sxr, syr, szr);
+      if (this.emitEvents) {
+
+        var posChanged = this.reportChangesToPosition(sx, sy, sz);
+        var rotChanged = this.reportChangesToRotation(sxr, syr, szr);
+      }
     }
     else if (this.data.debug) {
       // Not attached.  But being able to see co-ordinates is still useful for
@@ -176,39 +226,21 @@ AFRAME.registerComponent('6dof-object-control', {
   reportChangesToPosition: function (x, y, z) {
 
     var changed = false;
-    const xDelta = x - this.lastReportedPosition.x;
-    const yDelta = y - this.lastReportedPosition.y;
-    const zDelta = z - this.lastReportedPosition.z;
 
-    if (xDelta > 0) {
-      this.emitNEvents("xplus", xDelta / this.data.posunit)
+    if ((x != this.lastReportedPosition.x) ||
+        (y != this.lastReportedPosition.y) ||
+        (z != this.lastReportedPosition.z))
+     {
+      // There has been some movement.
       changed = true;
-    }
-    else if (xDelta < 0) {
-      this.emitNEvents("xminus", xDelta / this.data.posunit)
-      changed = true;
-    }
 
-    if (yDelta > 0) {
-      this.emitNEvents("yplus", yDelta / this.data.posunit)
-      changed = true;
-    }
-    else  if (xDelta < 0) {
-      this.emitNEvents("yminus", yDelta / this.data.posunit)
-      changed = true;
-    }
+     // event Data contains the new position.
+      var eventData = new THREE.Vector3(x, y, z);
+      this.el.emit("move", eventData);
 
-    if (zDelta > 0) {
-      this.emitNEvents("zplus", zDelta / this.data.posunit)
-      changed = true;
+      // Update record of the position we reported.
+      copyXYZ(this.el.object3D.position, this.lastReportedPosition);
     }
-    else if (zDelta < 0) {
-      this.emitNEvents("zminus", zDelta / this.data.posunit)
-      changed = true;
-    }
-
-    // Update record of the position we reported.
-    copyXYZ(this.el.object3D.position, this.lastReportedPosition);
 
     return(changed);
   },
@@ -216,51 +248,27 @@ AFRAME.registerComponent('6dof-object-control', {
   // Emit events for any changes to rotaton.  Return an indication whether
   // there were any events emitted.
   reportChangesToRotation: function (xr, yr, zr) {
+    var changed = false;
+
+    // We have some rotation.
     const xrDelta = xr - this.lastReportedRotation.x;
     const yrDelta = yr - this.lastReportedRotation.y;
     const zrDelta = zr - this.lastReportedRotation.z;
-    var changed = false;
 
-    if (xrDelta > 0) {
-      this.emitNEvents("xRotPlus", xrDelta / this.rotationUnit)
-      changed = true;
-    }
-    else if (xrDelta < 0) {
-      this.emitNEvents("xRotMinus", xrDelta / this.rotationUnit)
-      changed = true;
-    }
+    if (xr !== this.lastReportedRotation.x ||
+        yr !== this.lastReportedRotation.y ||
+        zr !== this.lastReportedRotation.z) {
 
-    if (yrDelta > 0) {
-      this.emitNEvents("yRotPlus", yrDelta / this.rotationUnit)
-      changed = true;
-    }
-    else if (yrDelta < 0) {
-      this.emitNEvents("yRotMinus", yrDelta / this.rotationUnit)
-      changed = true;
-    }
+        // There has been some movement.
+        var eventData = new THREE.Euler(xr, yr, zr);
+        changed = true;
+        this.el.emit("rotate", eventData);
 
-    if (zrDelta > 0) {
-      this.emitNEvents("zRotPlus", zrDelta / this.rotationUnit)
-      changed = true;
-    }
-    else if (zrDelta < 0) {
-      this.emitNEvents("zRotMinus", zrDelta / this.rotationUnit)
-      changed = true;
-    }
-
-    // Update record of the rotation we reported.
-    copyXYZ(this.el.object3D.rotation, this.lastReportedRotation);
+        // Update record of the rotation we reported.
+        copyXYZ(this.el.object3D.rotation, this.lastReportedRotation);
+      }
 
     return(changed);
-  },
-
-  // Utility function to emit events.
-  emitNEvents: function(event, count) {
-
-    console.log(`Event: ${event} emitted ${count} times`)
-    for (var ii = 0; ii < count; ii++) {
-      this.el.emit("xplus");
-    }
   },
 
   // Maps proxy position to target position by applying offset, and
@@ -282,6 +290,8 @@ AFRAME.registerComponent('6dof-object-control', {
   }
 });
 
+// END OF sixdof-object-control COMPONENT
+//------------------------------------------------------------------------------
 
 /* This component is configured on the Proxy
  * with config indicating the Target and the Controller
@@ -296,7 +306,7 @@ AFRAME.registerComponent('6dof-object-control', {
  * Will need some minor code changes to implement that, or make it configurable.
 */
 
-AFRAME.registerComponent('6dof-control-proxy', {
+AFRAME.registerComponent('sixdof-control-proxy', {
 
   schema: {
     controller:  {type: 'string', default: "#rhand"},
@@ -642,12 +652,14 @@ AFRAME.registerComponent('6dof-control-proxy', {
         this.el.object3D.quaternion.copy(this.quaternionCRotNow.multiply(this.quaternionAInverseB));
 
         // Diags
+        /* These proved too verbose - commenting out.
         logQuat("Quat A", this.quaternionA, dp = 2, debug = true);
         logQuat("Quat A Inverse", this.quaternionAInverse, dp = 2, debug = true);
         logQuat("Quat B", this.quaternionB, dp = 2, debug = true);
         logQuat("Quat A Inverse B", this.quaternionAInverseB, dp = 2, debug = true);
         logQuat("Quat C", this.quaternionCRotNow, dp = 2, debug = true);
         logQuat("Quat D", this.el.object3D.quaternion, dp = 2, debug = true);
+        */
 
       }
       else {
