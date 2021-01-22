@@ -14,10 +14,10 @@
  *   with no impact on the target object.
  *
  * In terms of code, there are 2 key components:
- * - motion-block-controls is a component configured on the object to be
+ * - 6dof-object-control is a component configured on the object to be
  *   controlled, the "Target".  It has to be configured with the ID of the
  *   proxy object.
- * - proxy-controller is a component configured on the entity representing
+ * - 6dof-control-proxy is a component configured on the entity representing
  *    the proxy object.  It has to be configured with the IDs of both the Target
  *    object & the Controller entity.
  *
@@ -27,7 +27,7 @@
 
 /* This component is configured on the Target
  * with config indicating the proxy */
-AFRAME.registerComponent('motion-block-controls', {
+AFRAME.registerComponent('6dof-object-control', {
 
   schema: {
     proxy:      {type: 'string', default: "#target-proxy"},
@@ -296,7 +296,7 @@ AFRAME.registerComponent('motion-block-controls', {
  * Will need some minor code changes to implement that, or make it configurable.
 */
 
-AFRAME.registerComponent('proxy-controller', {
+AFRAME.registerComponent('6dof-control-proxy', {
 
   schema: {
     controller:  {type: 'string', default: "#rhand"},
