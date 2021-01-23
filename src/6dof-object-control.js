@@ -313,7 +313,6 @@ AFRAME.registerComponent('sixdof-control-proxy', {
     target:      {type: 'string', default: "#target"},
     logger:      {type: 'string', default: "#log-panel"},
     debug:       {type: 'boolean', default: false},
-    usequat:     {type: 'boolean', default: true} // whether to use Quaternion math for rotations.
   },
 
   init: function () {
@@ -360,10 +359,6 @@ AFRAME.registerComponent('sixdof-control-proxy', {
     this.offsetQuaternion = new THREE.Quaternion();
     this.offsetInverseQuaternion = new THREE.Quaternion();
     this.offsetRotation = new THREE.Euler(0, 0, 0);
-
-    // Flag to use non-Quaternion maths. Prone to Gimbal locking, but simpler.
-    // switching this on can be useful for debugging, maybe?
-    this.useQuaternions = this.data.usequat;
 
     // References to controller & target.
     this.controller = document.querySelector(this.data.controller)
@@ -537,8 +532,7 @@ AFRAME.registerComponent('sixdof-control-proxy', {
     var logtext = "Proxy Controller Object\n"
 
     if (this.data.debug) {
-      logtext += (this.useQuaternions) ? "Quaternions ON\n" : "Quaternions OFF\n";
-//      logtext += logQuat("Rotation Offset Quaternion:\n", this.offsetQuaternion, 1);
+      logtext += logQuat("Rotation Offset Quaternion:\n", this.offsetQuaternion, 1);
 //      logtext += logQuat("Inverse:\n", this.offsetInverseQuaternion, 1);
       logtext += logQuat("Quaternion A:\n", this.quaternionA, 1);
       logtext += logQuat("Quaternion B:\n", this.quaternionB, 1);
@@ -581,100 +575,61 @@ AFRAME.registerComponent('sixdof-control-proxy', {
       // visible to the user.  But this can be useful in debug mode, so we
       // rotate even when detached).
 
-      // Compute the differences in rotation since the trigger was squeezed.
-      // These are both data taken from the control, within a single frame of
-      // reference, so we can safely deduct one from the other.
-      // !! I think this is true... fingers crossed!
-//      const rotDelta = new THREE.Euler(this.controller.object3D.rotation.x -
-//                                       this.triggerDownCRotation.x,
-//                                       this.controller.object3D.rotation.y -
-//                                       this.triggerDownCRotation.y,
-//                                       this.controller.object3D.rotation.z -
-//                                       this.triggerDownCRotation.z);
+      // - A = Controller Rotation when Trigger Down
+      // - B = Proxy Rotation when Trigger Down.
+      // - C = Controller Rotation now.
 
-      if (this.useQuaternions)
-      {
-        // Proper maths solution...
+      // We want to figure out D: What should Proxy Rotation now be?
 
-        // - A = Controller Rotation when Trigger Down
-        // - B = Proxy Rotation when Trigger Down.
-        // - C = Controller Rotation now.
+      // D - B should equal C - A.  i.e. the two objects should have between
+      // transformed in the same way.
 
-        // We want to figure out D: What should Proxy Rotation now be?
+      // Rotations are more like multiplication than addition, so best express
+      // as D(B) = C(A) where (A) is the inverse of A etc.
+      // therefore D = C(A)B
 
-        // D - B should equal C - A.  i.e. the two objects should have between
-        // transformed in the same way.
+      // Which means that (A)B should be the rotation we apply to C to get D.
 
-        // Rotations are more like multiplication than addition, so best express
-        // as D(B) = C(A) where (A) is the inverse of A etc.
-        // therefore D = C(A)B
+      // but we should do proper rotation composition, rather than
+      // linear addition (which is prone to problems like Gimbal Lock).
+      // This is done using Quaternions.
 
-        // Which means that (A)B should be the rotation we apply to C to get D.
+      // 2 possible approaches:
+      // 1. Use deltas.  We just try to make a small adjustment to the
+      // current state.
+      // 2. Go right back to the Trigger Down event (A, B, C & D).
 
-        // but we should do proper rotation composition, rather than
-        // linear addition (which is prone to problems like Gimbal Lock).
-        // This is done using Quaternions.
+      // Approach 1 would require that we'd stored off the Controller position
+      // at the last tick.
+      // Then we do D = C(A)B for just the scope of the last tick, where
+      // "B" and "A" are replaced by the data from the last tick.
+      // We could do this using Quaternion.multiply.
 
-        // 2 possible approaches:
-        // 1. Use deltas.  We just try to make a small adjustment to the
-        // current state.
-        // 2. Go right back to the Trigger Down event (A, B, C & D).
+      // Approach 2 would require the ability to overwrite the current rotation
+      // data of the Proxy.  We could do this using Quaternion.copy.
+      // Approach 2 is probably more performant, as we can pre-calculate A, (A)
+      // and B.
 
-        // Approach 1 would require that we'd stored off the Controller position
-        // at the last tick.
-        // Then we do D = C(A)B for just the scope of the last tick, where
-        // "B" and "A" are replaced by the data from the last tick.
-        // We could do this using Quaternion.multiply.
+      // So let's try Approach 2.
+      // So D = C(A)B.
+      // (A)B is pre-computed
+      this.eulerC.set(this.controller.object3D.rotation.x,
+                      this.controller.object3D.rotation.y,
+                      this.controller.object3D.rotation.z);
+      this.quaternionCRotNow.setFromEuler(this.eulerC)
 
-        // Approach 2 would require the ability to overwrite the current rotation
-        // data of the Proxy.  We could do this using Quaternion.copy.
-        // Approach 2 is probably more performant, as we can pre-calculate A, (A)
-        // and B.
+      // Calculate C(A)B and copy into the object's quaternion.
+      this.el.object3D.quaternion.copy(this.quaternionCRotNow.multiply(this.quaternionAInverseB));
 
-        // So let's try Approach 2.
-        // So D = C(A)B.
-        // (A)B is pre-computed
-        this.eulerC.set(this.controller.object3D.rotation.x,
-                        this.controller.object3D.rotation.y,
-                        this.controller.object3D.rotation.z);
-        this.quaternionCRotNow.setFromEuler(this.eulerC)
-
-        // Calculate C(A)B and copy into the object's quaternion.
-        this.el.object3D.quaternion.copy(this.quaternionCRotNow.multiply(this.quaternionAInverseB));
-
-        // Diags
-        /* These proved too verbose - commenting out.
-        logQuat("Quat A", this.quaternionA, dp = 2, debug = true);
-        logQuat("Quat A Inverse", this.quaternionAInverse, dp = 2, debug = true);
-        logQuat("Quat B", this.quaternionB, dp = 2, debug = true);
-        logQuat("Quat A Inverse B", this.quaternionAInverseB, dp = 2, debug = true);
-        logQuat("Quat C", this.quaternionCRotNow, dp = 2, debug = true);
-        logQuat("Quat D", this.el.object3D.quaternion, dp = 2, debug = true);
-        */
-
-      }
-      else {
-        // Naive solution. (no quaternions)
-
-        // Pretty simple...
-        // - A = Controller Rotation when Trigger Down
-        // - B = Proxy Rotation when Trigger Down.
-        // - C = Controller Rotation now.
-
-        // D = Proxy Rotation Now = B + C - A.
-        logXYZ("Ctrlr TD Rot:", this.triggerDownCRotation, 1, true);
-        logXYZ("Proxy TD Rot:", this.triggerDownPRotation, 1, true);
-        logXYZ("Ctrlr Rot Now:", this.controller.object3D.rotation, 1, true);
-
-        this.el.object3D.rotation.x = this.triggerDownPRotation.x +
-              this.controller.object3D.rotation.x - this.triggerDownCRotation.x;
-        this.el.object3D.rotation.y = this.triggerDownPRotation.y +
-              this.controller.object3D.rotation.y - this.triggerDownCRotation.y;
-        this.el.object3D.rotation.z = this.triggerDownPRotation.z +
-              this.controller.object3D.rotation.z - this.triggerDownCRotation.z;
-
-        logXYZ("Resulting Proxy Rotation:", this.el.object3D.rotation, 1, true);
-      }
+      // Diags
+      /* These proved too verbose - commenting out.
+      logQuat("Quat A", this.quaternionA, dp = 2, debug = true);
+      logQuat("Quat A Inverse", this.quaternionAInverse, dp = 2, debug = true);
+      logQuat("Quat B", this.quaternionB, dp = 2, debug = true);
+      logQuat("Quat A Inverse B", this.quaternionAInverseB, dp = 2, debug = true);
+      logQuat("Quat C", this.quaternionCRotNow, dp = 2, debug = true);
+      logQuat("Quat D", this.el.object3D.quaternion, dp = 2, debug = true);
+      */
     }
 
     // Log diags info.
