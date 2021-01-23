@@ -85,7 +85,7 @@ Further config options are available as follows.
 
 * posunit: the minimum unit of positional movement in m.  So 0.1 = 10cm.  Should be non-zero (and positive unless you want the controls to work backwards!) - so e.g. use 0.001 for smooth movement (not 0).  Note that small values can lead to very large numbers of movement events (if enabled) - which could lead to performance issues.
 * rotunit: the minimum unit of rotational movement in degrees.  Should be non-zero (and positive unless you want the controls to work backwards!).. For smooth movement use a small value, e.g. 0.1.  Note that small values can lead to very large numbers of movement events (if enabled) - which could lead to performance issues.
-* movement: one of "direct", "events" or "both":
+* movement: one of "direct", "events" or "both".  Default: direct.
   * direct: the Target object is moved directly by this component.  This is the simplest option.
 
   * events: the Target object emits events, which can be acted on by another component to effect movement.  This allows for interpolation of collision detection & other factors.  But it means that the logic to actually move the object needs to be implemented elsewhere.

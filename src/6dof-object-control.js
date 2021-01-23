@@ -66,7 +66,7 @@ AFRAME.registerComponent('sixdof-object-control', {
     debug:      {type: 'boolean', default: false},
     posunit:    {type: 'number', default: 0.1},
     rotunit:    {type: 'number', default: 90},
-    movement:    {type: 'string', default: "events"}
+    movement:    {type: 'string', default: "direct"}
   },
 
   init: function () {
