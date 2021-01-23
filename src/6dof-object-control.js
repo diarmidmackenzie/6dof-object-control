@@ -312,7 +312,6 @@ AFRAME.registerComponent('sixdof-control-proxy', {
     controller:  {type: 'string', default: "#rhand"},
     target:      {type: 'string', default: "#target"},
     logger:      {type: 'string', default: "#log-panel"},
-    lockrotate:  {type: 'boolean', default: false},
     debug:       {type: 'boolean', default: false},
     usequat:     {type: 'boolean', default: true} // whether to use Quaternion math for rotations.
   },
@@ -322,13 +321,6 @@ AFRAME.registerComponent('sixdof-control-proxy', {
     // This can be useful for debugging.
     // this.tick = AFRAME.utils.throttleTick(this.tick, 100, this);
     // Controls config----------------------------------------------------------
-
-    // Rotation lock means that you can only rotate in a single axis, for
-    // each "TriggerDown" event.
-    // This was added early in development.  Seems to be less valuable now the
-    // user has clear visual clues on rotation, so hasn't been tested much,
-    // but code is still there.
-    this.rotationLockEnabled = this.data.lockrotate;
 
     // Setting these to "false" would mean you could move while Rotating
     // and rotate while moving.
@@ -397,7 +389,6 @@ AFRAME.registerComponent('sixdof-control-proxy', {
 
     this.controller = document.querySelector(this.data.controller)
     this.target = document.querySelector(this.data.target)
-    this.rotationLockEnabled = this.data.lockrotate;
   },
 
   // Safe to call this if the proxy is already attached/visible:
