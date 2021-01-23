@@ -23,19 +23,37 @@ The user controls movement of the object using the 6DOF controller as follows:
 - Hold trigger down and rotate the controller to rotate the object.
 - Holding grip + trigger at the same time allows simultaneous rotation and movement.
 
-When neither the grip and trigger is pressed, the controller can be moved around without any impact on the target object.
+When neither the grip and trigger is pressed, the controller can be moved around without any impact on the target object.  The user can even walk around the object and start moving it from the other side.
 
 
 
 ### Installation
 
-Download key-bindings.js from this repo, and include like this:
+Download 6dof-object-control.js from this repo, and include like this:
 
 ```
 <script src="6dof-object-control.js"></script>
 ```
 
-CDN through JSDeliver coming soon...
+Or via JSDelivr CDN:
+
+```
+<script src="https://cdn.jsdelivr.net/gh/diarmidmackenzie/6dof-object-control@v0.1-alpha/src/6dof-object-control.min.js"></script>
+```
+
+
+
+If you also want keyboard simulation of 6DoF controller, you'll also need:
+
+```
+<script src="keyboard-hand-control.js"></script>
+```
+
+or
+
+```
+<script src="https://cdn.jsdelivr.net/gh/diarmidmackenzie/6dof-object-control@v0.1-alpha/src/keyboard-hand-controls.min.js"></script>
+```
 
 
 
@@ -65,7 +83,7 @@ There are 2 separate components that make up the controls:
 To get things working at all, you'll need to set the following (or configure your objects with the default values):
 
 - sixdof-object-control
-  -  proxy: the element ID of the Proxy.  Default: #proxy
+  -  proxy: the element ID of the Proxy.  Default: #	proxy
 
 *         sixdof-control-proxy
           * controller: the element ID of the Controller.  Default: #rhand
