@@ -61,7 +61,7 @@ AFRAME.registerComponent('sixdof-object-control', {
 *                 This is an absolute new rotation (from zero), not a delta.
 */
   schema: {
-    proxy:      {type: 'string', default: "#target-proxy"},
+    proxy:      {type: 'string', default: "#proxy"},
     logger:     {type: 'string', default: "#log-panel"},
     debug:      {type: 'boolean', default: false},
     posunit:    {type: 'number', default: 0.1},

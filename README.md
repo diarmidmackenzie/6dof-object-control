@@ -65,7 +65,7 @@ There are 2 separate components that make up the controls:
 To get things working at all, you'll need to set the following (or configure your objects with the default values):
 
 - sixdof-object-control
-  -  proxy: the element ID of the Proxy.  Default: #target-proxy
+  -  proxy: the element ID of the Proxy.  Default: #proxy
 
 *         sixdof-control-proxy
           * controller: the element ID of the Controller.  Default: #rhand
