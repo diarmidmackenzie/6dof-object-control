@@ -10,9 +10,10 @@ AFRAME.registerComponent('keyboard-hand-controls', {
      init: function () {
 
        this.selectedControlIndex = 0;
-       this.controlsTable = ["x", "y", "z", "Rx", "Ry", "Rz", "Grip", "Trigger"];
+       this.controlsTable = ["x", "y", "z", "Rx", "Ry", "Rz", "Grip", "Trigger", "A"];
        this.gripDown = false;
        this.triggerDown = false;
+       this.ADown = false;
        this.listeners = {
          //plus: this.plus.bind(this),
          //minus: this.minus.bind(this),
@@ -149,6 +150,17 @@ AFRAME.registerComponent('keyboard-hand-controls', {
            }
            break;
 
+         case "A":
+           if (!this.ADown) {
+             this.el.emit("abuttondown");
+             this.ADown = true;
+           }
+           else { //this.ADown = false.
+             this.el.emit("abuttondownup");
+             this.ADown = false;
+           }
+           break;
+
          default:
            console.log("Unexpected value for control");
            break;
@@ -169,6 +181,7 @@ AFRAME.registerComponent('keyboard-hand-controls', {
        logtext += `Position: x: ${x.toFixed(2)}, y: ${y.toFixed(2)}, z: ${z.toFixed(2)}\n`
        logtext += `Rotation: xr: ${xr.toFixed(1)}, yr: ${yr.toFixed(1)}, zr: ${zr.toFixed(1)}\n`
        logtext += `Grip Down: ${this.gripDown}\nTrigger Down: ${this.triggerDown}\n`
+       logtext += `A Down: ${this.ADown}\n`
        logtext += `Selected Control: ${this.controlsTable[this.selectedControlIndex]}\n`
        // select using keys starting from 3.
        var controls = this.controlsTable.map((value, index) => ((index + 1) + ":" + value)).join(", ");
