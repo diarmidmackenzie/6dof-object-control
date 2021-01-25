@@ -14,6 +14,7 @@ AFRAME.registerComponent('keyboard-hand-controls', {
        this.gripDown = false;
        this.triggerDown = false;
        this.ADown = false;
+       this.worldPosition = new THREE.Vector3();
        this.listeners = {
          //plus: this.plus.bind(this),
          //minus: this.minus.bind(this),
@@ -173,12 +174,18 @@ AFRAME.registerComponent('keyboard-hand-controls', {
        const y = this.el.object3D.position.y;
        const z = this.el.object3D.position.z;
 
+       this.el.object3D.getWorldPosition(this.worldPosition);
+       const xw = this.worldPosition.x;
+       const yw = this.worldPosition.y;
+       const zw = this.worldPosition.z;
+
        const xr = this.el.object3D.rotation.x;
        const yr = this.el.object3D.rotation.y;
        const zr = this.el.object3D.rotation.z;
 
        var logtext = "Keyboard Virtual Controller\n"
        logtext += `Position: x: ${x.toFixed(2)}, y: ${y.toFixed(2)}, z: ${z.toFixed(2)}\n`
+       logtext += `World Position: x: ${xw.toFixed(2)}, y: ${yw.toFixed(2)}, z: ${zw.toFixed(2)}\n`
        logtext += `Rotation: xr: ${xr.toFixed(1)}, yr: ${yr.toFixed(1)}, zr: ${zr.toFixed(1)}\n`
        logtext += `Grip Down: ${this.gripDown}\nTrigger Down: ${this.triggerDown}\n`
        logtext += `A Down: ${this.ADown}\n`
