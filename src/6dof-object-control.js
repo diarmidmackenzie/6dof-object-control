@@ -313,6 +313,8 @@ AFRAME.registerComponent('sixdof-control-proxy', {
     target:      {type: 'string', default: "#target"},
     logger:      {type: 'string', default: "#log-panel"},
     debug:       {type: 'boolean', default: false},
+    move:        {type: 'string', default: "grip"},
+    rotate:      {type: 'string', default: "trigger"}
   },
 
   init: function () {
@@ -321,20 +323,61 @@ AFRAME.registerComponent('sixdof-control-proxy', {
     // this.tick = AFRAME.utils.throttleTick(this.tick, 100, this);
     // Controls config----------------------------------------------------------
 
-    // Setting these to "false" would mean you could move while Rotating
-    // and rotate while moving.
-    // I *think* the result would be that grip & trigger would both operate as
-    // "Move and/or Rotate", but haven't tested yet.
-    this.gripToMove = true;
-    this.triggerToRotate = true;
+    // Translate controls config into a usable set of flags.
+    switch (this.data.move) {
+      case "grip":
+        this.gripMove = true;
+        this.triggerMove = false;
+        break;
+
+      case "trigger":
+        this.triggerMove = true;
+        this.gripMove = false;
+        break;
+
+      case "either":
+        this.triggerMove = true;
+        this.gripMove = true;
+        break;
+
+      default:
+        console.log("Unexpected move control config: " + this.data.move);
+    }
+
+    switch (this.data.rotate) {
+      case "grip":
+        this.gripRotate = true;
+        this.triggerRotate = false;
+        break;
+
+      case "trigger":
+        this.triggerRotate = true;
+        this.gripRotate = false;
+        break;
+
+      case "either":
+        this.triggerRotate = true;
+        this.gripRotate = true;
+        break;
+
+      default:
+        console.log("Unexpected move control config: " + this.data.move);
+    }
+
+    console.log("Controls config:")
+    console.log("gripRotate: " + this.gripRotate)
+    console.log("gripMove: " + this.gripMove)
+    console.log("triggerRotate: " + this.triggerRotate)
+    console.log("triggerMove: " + this.triggerMove)
 
     // Controls state
-    this.triggerDownCRotation = {'x' : 0, 'y': 0, 'z': 0}; // controller
-    this.triggerDownPRotation = {'x' : 0, 'y': 0, 'z': 0}; // proxy
-    this.triggerDown = false;
-    this.rotationLock = "";
-    this.gripDownPosition = {'x' : 0, 'y': 0, 'z': 0};
+    this.startRotateCRotation = {'x' : 0, 'y': 0, 'z': 0}; // controller
+    this.startRotatePRotation = {'x' : 0, 'y': 0, 'z': 0}; // proxy
+    this.rotateControlDown = false;
+    this.startMovePosition = {'x' : 0, 'y': 0, 'z': 0};
+    this.moveControlDown = false;
     this.gripDown = false;
+    this.triggerDown = false;
 
     // Maths stuff to handle the offset between rotation of controller &
     // rotation of the proxy.
@@ -421,10 +464,10 @@ AFRAME.registerComponent('sixdof-control-proxy', {
   // This is safe to call if controls already detached/invisible.
   detachProxyIfNotNeeded: function () {
 
-    if ((!this.gripDown) &&
-        (!this.triggerDown))
+    if ((!this.moveControlDown) &&
+        (!this.rotateControlDown))
     {
-      // Neither grip nor trigger down.
+      // Neither type of movement is underway..
       // set our own record of visibility state.
       this.proxyVisible = false;
 
@@ -439,8 +482,63 @@ AFRAME.registerComponent('sixdof-control-proxy', {
   },
 
   onTriggerDown: function (event) {
-    // Trigger down puts us into rotation mode.
+
     this.triggerDown = true;
+
+    if (this.triggerRotate &&
+      !(this.gripRotate && this.gripDown)) {
+      this.startRotate();
+    }
+    if (this.triggerMove &&
+      !(this.gripMove && this.gripDown)) {
+      this.startMove();
+    }
+  },
+
+  onTriggerUp: function (event) {
+
+    this.triggerDown = false;
+
+    if (this.triggerRotate &&
+      !(this.gripRotate && this.gripDown)) {
+      this.endRotate();
+    }
+    if (this.triggerMove &&
+      !(this.gripMove && this.gripDown)) {
+      this.endMove();
+    }
+  },
+
+  onGripDown: function (event) {
+
+    this.gripDown = true;
+
+    if (this.gripRotate &&
+      !(this.triggerRotate && this.triggerDown)) {
+      this.startRotate();
+    }
+    if (this.gripMove &&
+      !(this.triggerMove && this.triggerDown)) {
+      this.startMove();
+    }
+  },
+  onGripUp: function (event) {
+
+    this.gripDown = false;
+
+    if (this.gripRotate &&
+      !(this.triggerRotate && this.triggerDown)) {
+      this.endRotate();
+    }
+    if (this.gripMove &&
+      !(this.triggerMove && this.triggerDown)) {
+      this.endMove();
+    }
+  },
+
+  startRotate: function () {
+    // Signaled to enter rotation mode.
+    this.rotateControlDown = true;
 
     this.attachProxy();
 
@@ -448,10 +546,10 @@ AFRAME.registerComponent('sixdof-control-proxy', {
     // Essential that we store this rotation *after* we have sync'd
     // rotation orientation with the target (done as part of the attach,
     // in the previous call)
-    copyXYZ(this.controller.object3D.rotation, this.triggerDownCRotation);
-    copyXYZ(this.el.object3D.rotation, this.triggerDownPRotation);
-    logXYZ("Controller Rotation at Trigger Down: ", this.triggerDownCRotation, 1, true);
-    logXYZ("Proxy Rotation at Trigger Down: ", this.triggerDownPRotation, 1, true);
+    copyXYZ(this.controller.object3D.rotation, this.startRotateCRotation);
+    copyXYZ(this.el.object3D.rotation, this.startRotatePRotation);
+    logXYZ("Controller Rotation at Trigger Down: ", this.startRotateCRotation, 1, true);
+    logXYZ("Proxy Rotation at Trigger Down: ", this.startRotatePRotation, 1, true);
 
     // For Quaternion calculations, we also want to compute & save some Quaternions.
     // using the same terminology as detailed in the tick function...
@@ -459,14 +557,14 @@ AFRAME.registerComponent('sixdof-control-proxy', {
     // - B = Proxy Rotation when Trigger Down.
     // - C = Controller Rotation now.
 
-    // So A is the Quaternion for this.triggerDownCRotation and
-    // B is the Quaternion for this.triggerDownPRotation and
-    this.eulerA.set(this.triggerDownCRotation.x,
-                    this.triggerDownCRotation.y,
-                    this.triggerDownCRotation.z);
-    this.eulerB.set(this.triggerDownPRotation.x,
-                    this.triggerDownPRotation.y,
-                    this.triggerDownPRotation.z);
+    // So A is the Quaternion for this.startRotateCRotation and
+    // B is the Quaternion for this.startRotatePRotation and
+    this.eulerA.set(this.startRotateCRotation.x,
+                    this.startRotateCRotation.y,
+                    this.startRotateCRotation.z);
+    this.eulerB.set(this.startRotatePRotation.x,
+                    this.startRotatePRotation.y,
+                    this.startRotatePRotation.z);
     this.quaternionA.setFromEuler(this.eulerA);
     this.quaternionB.setFromEuler(this.eulerB); // !! FIXED BUG
     this.quaternionAInverse = this.quaternionA.invert();
@@ -476,9 +574,9 @@ AFRAME.registerComponent('sixdof-control-proxy', {
 
   },
 
-  onTriggerUp: function (event) {
+  endRotate: function () {
     // Trigger down moves us out of rotation mode.
-    this.triggerDown = false;
+    this.rotateControlDown = false;
 
     // clear rotation lock.
     this.rotationLock = "";
@@ -493,17 +591,17 @@ AFRAME.registerComponent('sixdof-control-proxy', {
     this.detachProxyIfNotNeeded();
   },
 
-  onGripDown: function (event) {
-    this.gripDown = true;
+  startMove: function (event) {
+    this.moveControlDown = true;
     this.attachProxy();
 
     // Store this position, to use as a reference for future movements.
-    copyXYZ(this.controller.object3D.position, this.gripDownPosition);
+    copyXYZ(this.controller.object3D.position, this.startMovePosition);
 
   },
 
-  onGripUp: function (event) {
-    this.gripDown = false;
+  endMove: function (event) {
+    this.moveControlDown = false;
 
     // This doesn't trigger any actual movement, that was already handled under
     // the "tick" method.
@@ -543,22 +641,22 @@ AFRAME.registerComponent('sixdof-control-proxy', {
       logtext += logXYZ("Now Pos: ", this.controller.object3D.position, 2);
       logtext += logXYZ("Now Rot: ", this.controller.object3D.rotation, 2);
       logtext += `TriggerDown: ${this.triggerDown}\nGripDown: ${this.gripDown}\n`
-      logtext += `RotationLock: ${this.rotationLock}\n`
+      logtext += `MoveControlDown: ${this.moveControlDown}\nRotateControlDownGripDown: ${this.rotateControlDown}\n`
       logtext += `Visible: ${this.proxyVisible}\n`
-      logtext += logXYZ("Grip Down Position: ", this.gripDownPosition, 2);
-      logtext += logXYZ("Trigger Down Rotation (Controller): ", this.triggerDownCRotation, 1);
-      logtext += logXYZ("Trigger Down Rotation (Proxy): ", this.triggerDownPRotation, 1);
+      logtext += logXYZ("Move Start Position: ", this.startMovePosition, 2);
+      logtext += logXYZ("Rotate Start Rotation (Controller): ", this.startRotateCRotation, 1);
+      logtext += logXYZ("Rotate Start Rotation (Proxy): ", this.startRotatePRotation, 1);
     }
 
-    if ((this.gripDown) || (!this.triggerDown) || (!this.gripToMove)) {
+    if ((this.moveControlDown) || (!this.rotateControlDown)) {
       // target is allowed to change position.
       // (rotating when detached won't affect the target, and won't be
       // visible to the user.  But this can be useful in debug mode, so we move
       // even when detached).
 
-      const xPosDelta = this.controller.object3D.position.x - this.gripDownPosition.x;
-      const yPosDelta = this.controller.object3D.position.y - this.gripDownPosition.y;
-      const zPosDelta = this.controller.object3D.position.z - this.gripDownPosition.z;
+      const xPosDelta = this.controller.object3D.position.x - this.startMovePosition.x;
+      const yPosDelta = this.controller.object3D.position.y - this.startMovePosition.y;
+      const zPosDelta = this.controller.object3D.position.z - this.startMovePosition.z;
 
       // Apply the translation to this object.
       this.el.object3D.position.x += xPosDelta;
@@ -566,10 +664,10 @@ AFRAME.registerComponent('sixdof-control-proxy', {
       this.el.object3D.position.z += zPosDelta;
 
       // Now update our stored position to reflect that we have caught up.
-      copyXYZ(this.controller.object3D.position, this.gripDownPosition);
+      copyXYZ(this.controller.object3D.position, this.startMovePosition);
     }
 
-    if ((this.triggerDown) || (!this.gripDown) || (!this.triggerToRotate)) {
+    if ((this.rotateControlDown) || (!this.moveControlDown)) {
       // The Proxy is allowed to rotate
       // (rotating when detached won't affect the target, and won't be
       // visible to the user.  But this can be useful in debug mode, so we

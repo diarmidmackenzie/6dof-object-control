@@ -1,10 +1,10 @@
 <!-- Example usage of 6dof-object-control
      Simple example showing rotation of an object.
-     Settings configured for smooth movement / rotation-->
+     Default settings.-->
 
 <html>
   <head>
-    <title>6DoF Object Controls Example - Smooth Movement</title>
+    <title>6DoF Object Controls Example - Default Settings</title>
     <script src="https://aframe.io/releases/1.1.0/aframe.min.js"></script>
     <script src="../src/6dof-object-control.js"></script>
     <script src="../src/keyboard-hand-controls.js"></script>
@@ -33,23 +33,23 @@
       <!-- "proxy" matches default for proxy parameter-->
       <!-- No physical object actually required here, if you don't want the
            Proxy to be visible -->
-      <a-entity id="proxy" sixdof-control-proxy>
+      <a-entity id="proxy" sixdof-control-proxy="move:either;rotate:grip">
       </a-entity>
 
       <!-- Target Object -->
       <!-- "target" matches default for target parameter-->
-     <a-entity id="target" position="0 1.3 -1.1" sixdof-object-control="posunit:0.001;rotunit:0.1" gltf-model="#triceratops"
+     <a-entity id="target" position="0 1.3 -1.1" sixdof-object-control gltf-model="#triceratops"
                 scale="0.002 0.002 0.002"
                 position="0 0 0">
      </a-entity>
 
      <!-- Some instructions -->
-     <a-text value="Hold Grip + Move to Move.  Trigger + Rotate to Rotate\n
-                    The object should move smoothly.\n
+     <a-text value="Alternate Config: Hold Grip or Trigger + Move to Move.  Grip + Rotate to Rotate.\n
+                    Note the object will only move in 10cm increments, and rotate by 90 degrees.\n
                     If using Keyboard Simulation of 6DoF Controller...\n
-                    Move: 7 then '=' for Grip, then 1/2/3 then '=' for x/y/z-movement.\n
-                    Rotate: 8 then '=' for Trigger, then 4/5/6 then '=' for x/y/z-rotation.\n
-                    " position="0 3 -4" color="grey"></a-text>
+                    Rotate: 7 then '=' for Grip, then 4/5/6 then '=' for x/y/z-rotation.\n
+                    Rotate: 7 or 8 then '=' for Grip or Trigger, then 1/2/3 then '=' for x/y/z-movement.\n"
+                    position="0 3 -4" color="grey"></a-text>
 
       <!-- Log Panels used for Diagnostics -->
       <a-text id="log-panel" value="Keyboard Sim Data" position="-5 3 -5" color="grey"></a-text>

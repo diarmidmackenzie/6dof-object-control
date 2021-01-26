@@ -19,9 +19,9 @@ The control system makes the 6DOF controller operate like a kind of 3D mouse, be
 
 The user controls movement of the object using the 6DOF controller as follows:
 
-- Hold grip down and move to move the object.
-- Hold trigger down and rotate the controller to rotate the object.
-- Holding grip + trigger at the same time allows simultaneous rotation and movement.
+- Hold either grip (default) or trigger down and move to move the object
+- Hold either grip or trigger (default) down and rotate the controller to rotate the object.
+- Whether "grip" or "trigger" is used to control movement or rotation is controlled by config on the proxy object - se e below
 
 When neither the grip and trigger is pressed, the controller can be moved around without any impact on the target object.  The user can even walk around the object and start moving it from the other side.
 
@@ -116,9 +116,11 @@ Further config options are available as follows.
 
 #### sixdof-control-proxy
 
-- No config at this time.  It would be desirable to be able to configure the roles of the grip & trigger buttons, but that's not yet implemented.
+- move: one of: "grip", "trigger" or "either".  Default: "grip".  Indicates which control will enable movement of the object.
 
-  
+- rotate: one of: "grip", "trigger" or "either".  Default: "trigger".  Indicates which control will enable movement of the object.
+
+  it is fine to set move & rotate to overlapping values.  This will result in both movement and rotation at the same time, when that overlapping control is engaged.
 
 ### Debugging
 
@@ -144,7 +146,7 @@ Configure this component on the Controller entity, e.g.
                 keyboard-hand-controls="logger:#log-panel3">
 Controls as follows:
 
-- Number keys 1-8 to pick a control to move: 1-3  are movement axes, 4-6 are rotation axes, 7 is Grip, 8 is Trigger.
+- Number keys 1-9 to pick a control to move: 1-3  are movement axes, 4-6 are rotation axes, 7 is Grip, 8 is Trigger, 9 is A (not used in the 6doF controls at this time, but nevertheless a useful function in keyboard-hand-controls)
 - minus (-) and equals (=) keys to move the selected control by a small amount (or toggle the grip or trigger)
 
 Config options for keyboard-hand-controls as follows:
