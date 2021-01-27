@@ -116,11 +116,13 @@ Further config options are available as follows.
 
 #### sixdof-control-proxy
 
-- move: one of: "grip", "trigger" or "either".  Default: "grip".  Indicates which control will enable movement of the object.
+- move: one of: "grip", "trigger", "either" or "none".  Default: "grip".  Indicates which control will enable movement of the object.
 
-- rotate: one of: "grip", "trigger" or "either".  Default: "trigger".  Indicates which control will enable movement of the object.
+- rotate: one of: "grip", "trigger", "either" or "none".  Default: "trigger".  Indicates which control will enable movement of the object.
 
-  it is fine to set move & rotate to overlapping values.  This will result in both movement and rotation at the same time, when that overlapping control is engaged.
+  It is fine to set move & rotate to overlapping values.  This will result in both movement and rotation at the same time, when that overlapping control is engaged.
+  
+  The main use case for "none" is where one of movement or rotation is not required.  (In future it might be useful to enable control of movement and rotation by separate hands, but that is not something that is allowed for in the current implementation, and it's not trivial, as with this current design it seems to require two proxy objects, both attaching to the target.)
 
 ### Debugging
 

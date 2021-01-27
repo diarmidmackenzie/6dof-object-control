@@ -295,19 +295,17 @@ AFRAME.registerComponent('sixdof-object-control', {
 
 /* This component is configured on the Proxy
  * with config indicating the Target and the Controller
- *
- * Controls currently hardcoded lke this:
- * - Grip to move (and not rotate)
- * - Trigger to rotate (and not move)
- * - Grip & Trigger to move & rotate at the same time.
- * - When Grip & Trigger are both released, the controller can be moved freely
- *   with no impact on the target object.
- * Might be desirable to offer e.g. Grip to contol both rotation & movement.
- * Will need some minor code changes to implement that, or make it configurable.
+ * Config available to configure for each of move & rotate,
+ * whether it is controlled by Grip, Trigger, Either, or None.
+ * None is a valid option, either because one of rotation or movement is not
+ * needed.
+ * In future, it could also be because that aspect of the target is Controlled
+ * by the other hand, but we don't support multiple hand controls yet - that
+ * would seem to require two proxies, one at each hand, both influencing the
+ * target, and we have not designed for that.
 */
 
 AFRAME.registerComponent('sixdof-control-proxy', {
-
   schema: {
     controller:  {type: 'string', default: "#rhand"},
     target:      {type: 'string', default: "#target"},
@@ -340,6 +338,11 @@ AFRAME.registerComponent('sixdof-control-proxy', {
         this.gripMove = true;
         break;
 
+      case "none":
+        this.triggerMove = false;
+        this.gripMove = false;
+        break;
+
       default:
         console.log("Unexpected move control config: " + this.data.move);
     }
@@ -358,6 +361,11 @@ AFRAME.registerComponent('sixdof-control-proxy', {
       case "either":
         this.triggerRotate = true;
         this.gripRotate = true;
+        break;
+
+      case "none":
+        this.triggerRotate = false;
+        this.gripRotate = false;
         break;
 
       default:
