@@ -121,6 +121,7 @@ AFRAME.registerComponent('sixdof-object-control', {
     console.log("PROXY ATTACHED----start taking position/rotation info from Proxy to Target");
 
     // calculating the offset to use when calculating target position from proxy position.
+    // Note, we assume target & proxy ar ein the same frame of reference.
     this.offset = {'x': this.el.object3D.position.x - this.proxy.object3D.position.x,
                    'y': this.el.object3D.position.y - this.proxy.object3D.position.y,
                    'z': this.el.object3D.position.z - this.proxy.object3D.position.z}
@@ -405,11 +406,7 @@ AFRAME.registerComponent('sixdof-control-proxy', {
     this.eulerA = new THREE.Euler(0,0,0);
     this.eulerB = new THREE.Euler(0,0,0);
     this.eulerC = new THREE.Euler(0,0,0);
-
-// These 3 are old... clear them out.
-    this.offsetQuaternion = new THREE.Quaternion();
-    this.offsetInverseQuaternion = new THREE.Quaternion();
-    this.offsetRotation = new THREE.Euler(0, 0, 0);
+    this.position = new THREE.Vector3(0,0,0);
 
     // References to controller & target.
     this.controller = document.querySelector(this.data.controller)
@@ -444,9 +441,16 @@ AFRAME.registerComponent('sixdof-control-proxy', {
 
     if (!this.proxyVisible) {
       // Set Proxy object position to current controller position.
-      copyXYZ(this.controller.object3D.position, this.el.object3D.position)
+      // We should not assume proxy & controller are in the same
+      // frame of reference, so we get the controller's world position,
+      // and convert it to the local position in the proxy's frame of
+      // reference.
+      this.controller.object3D.getWorldPosition(this.el.object3D.position);
+      this.el.object3D.parent.worldToLocal(this.el.object3D.position);
 
       // We want to snap to the target's rotation.  TARGET -> PROXY.
+      // We assume that the target & proxy *are* in the same frame of reference.
+      // otherwise the proxy controller will be unusable.
       copyXYZ(this.target.object3D.rotation, this.el.object3D.rotation)
 
       // We have had some problems getting this to work, so here's some
@@ -638,14 +642,11 @@ AFRAME.registerComponent('sixdof-control-proxy', {
     var logtext = "Proxy Controller Object\n"
 
     if (this.data.debug) {
-      logtext += logQuat("Rotation Offset Quaternion:\n", this.offsetQuaternion, 1);
-//      logtext += logQuat("Inverse:\n", this.offsetInverseQuaternion, 1);
       logtext += logQuat("Quaternion A:\n", this.quaternionA, 1);
       logtext += logQuat("Quaternion B:\n", this.quaternionB, 1);
       logtext += logQuat("Quaternion A inverse:\n", this.quaternionAInverse, 1);
       logtext += logQuat("Quaternion A inverse B:\n", this.quaternionAInverseB, 1);
 
-//      logtext += logXYZ("Euler equivalent:\n", this.offsetRotation, 1);
       logtext += logXYZ("Now Pos: ", this.controller.object3D.position, 2);
       logtext += logXYZ("Now Rot: ", this.controller.object3D.rotation, 2);
       logtext += `TriggerDown: ${this.triggerDown}\nGripDown: ${this.gripDown}\n`
@@ -667,9 +668,19 @@ AFRAME.registerComponent('sixdof-control-proxy', {
       const zPosDelta = this.controller.object3D.position.z - this.startMovePosition.z;
 
       // Apply the translation to this object.
-      this.el.object3D.position.x += xPosDelta;
-      this.el.object3D.position.y += yPosDelta;
-      this.el.object3D.position.z += zPosDelta;
+      // But we need to do so in controller-space, so we need to
+      // transform from target-space, apply the translation & then transform back.
+
+      this.el.object3D.getWorldPosition(this.position);
+      this.controller.object3D.parent.worldToLocal(this.position);
+
+      this.position.x += xPosDelta;
+      this.position.y += yPosDelta;
+      this.position.z += zPosDelta;
+
+      this.controller.object3D.parent.localToWorld(this.position);
+      this.el.object3D.parent.worldToLocal(this.position);
+      this.el.object3D.position.copy(this.position);
 
       // Now update our stored position to reflect that we have caught up.
       copyXYZ(this.controller.object3D.position, this.startMovePosition);

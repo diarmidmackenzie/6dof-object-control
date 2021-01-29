@@ -1,0 +1,72 @@
+<!-- Example usage of 6dof-object-control
+     Example where controlled object is in a different frame of reference
+     from teh controller.
+     Note: position of proxy doesn't really matter until we first attach
+     (grip down or trigger down), at which point it will be relocated to the
+     (simulated) position of the right hand. -->
+
+<html>
+  <head>
+    <title>6DoF Object Controls Example - Default Settings</title>
+    <script src="https://aframe.io/releases/1.1.0/aframe.min.js"></script>
+    <script src="../src/6dof-object-control.js"></script>
+    <script src="../src/keyboard-hand-controls.js"></script>
+  </head>
+  <body>
+    <a-scene>
+      <!-- Asset for Target Object -->
+      <a-asset-item id="triceratops"
+        src="https://cdn.aframe.io/examples/ar/models/triceratops/scene.gltf"
+        response-type="arraybuffer" crossorigin="anonymous">
+      </a-asset-item>
+
+      <a-camera position="0 1.6 0">
+      </a-camera>
+      <!-- Right Hand Controller.  Specify a position for the case where
+          we are running in a 2D browser, and the contoller is Keyboard
+          emulated. -->
+      <!-- "rhand" matches default for controller parameter-->
+      <a-entity id="rhand" mixin="touch"
+                hand-controls="hand: right"
+                keyboard-hand-controls="logger:#log-panel3"
+                position="0.2 1.3 -0.3">
+      </a-entity>
+
+      <!-- Alternate frame of reference for proxy & target
+           Note, it is assumed that they are within the same frame of
+           referece as each other, since if they were not, the proxy
+           would not provide a useful point of reference for controlling the
+           movements of the target-->
+
+      <a-entity position = "1 2 -2" rotation = "0 0 -90"
+        <!-- Proxy Object -->
+        <!-- "proxy" matches default for proxy parameter-->
+        <!-- No physical object actually required here, if you don't want the
+             Proxy to be visible -->
+        <a-entity id="proxy" sixdof-control-proxy="logger:#log-panel2;debug:true" gltf-model="#triceratops" scale="0.002 0.002 0.002">
+        </a-entity>
+
+        <!-- Target Object -->
+        <!-- "target" matches default for target parameter-->
+       <a-entity id="target" position="0 1.3 -1.1" sixdof-object-control="logger:#log-panel1;debug:true" gltf-model="#triceratops"
+                  scale="0.002 0.002 0.002"
+                  position="0 0 0">
+       </a-entity>
+     </a-entity>
+
+     <!-- Some instructions -->
+     <a-text value="Hold Grip + Move to Move.  Trigger + Rotate to Rotate\n
+                    Note the object will only move in 10cm increments, and rotate by 90 degrees.\n
+                    If using Keyboard Simulation of 6DoF Controller...\n
+                    Move: 7 then '=' for Grip, then 1/2/3 then '=' for x/y/z-movement.\n
+                    Rotate: 8 then '=' for Trigger, then 4/5/6 then '=' for x/y/z-rotation.\n"
+                    position="-7 -1 -5" color="grey"></a-text>
+
+      <!-- Log Panels used for Diagnostics -->
+      <!-- Log Panels used for Diagnostics -->
+      <a-text id="log-panel1" value="Target Data" position="3 3 -5" color="grey"></a-text>
+      <a-text id="log-panel2" value="Proxy Controller Data" position="-1 3 -5" color="grey"></a-text>
+      <a-text id="log-panel3" value="Keyboard Sim Data" position="-5 3 -5" color="grey"></a-text>
+    </a-scene>
+  </body>
+</html>
