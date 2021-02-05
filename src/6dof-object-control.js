@@ -1,4 +1,4 @@
-  //"use strict";
+ //"use strict";
 
 /* Motion controls to move & rotate blocks in 3D space.
  *
@@ -37,6 +37,10 @@ AFRAME.registerComponent('sixdof-object-control', {
 *          Should be positive & non-zero - e.g. 0.001 for smooth movement.
 *          Note that small values can lead to very large numbers of movement
 *          events (if enabled) - which could cause performance issues.
+* posgrid: "relative" or "absolute".  Are the grid positions to snap to absolute
+           or relative to the starting position?  Default is "absolute".
+           (an equivalent setting for rotation is theoretically possible
+           but not available at this time).
 * rotunit: the minimum unit of rotational movement in degrees.
 *          Should be positive & non-zero - e.g. 0.1 for smooth movement.
 *          Note that small values can lead to very large numbers of movement
@@ -65,6 +69,7 @@ AFRAME.registerComponent('sixdof-object-control', {
     logger:     {type: 'string', default: "#log-panel"},
     debug:      {type: 'boolean', default: false},
     posunit:    {type: 'number', default: 0.1},
+    posgrid:    {type: 'string', default: "absolute"},
     rotunit:    {type: 'number', default: 90},
     movement:    {type: 'string', default: "direct"}
   },
@@ -86,6 +91,14 @@ AFRAME.registerComponent('sixdof-object-control', {
 
     copyXYZ(this.el.object3D.position, this.lastReportedPosition);
     copyXYZ(this.el.object3D.rotation, this.lastReportedRotation);
+
+    if (this.data.posgrid == "absolute") {
+      this.gridReference = new THREE.Vector3(0, 0, 0)
+    }
+    else {
+      this.gridReference = this.el.object3D.position.clone();
+    }
+
 
     // Event listeners...
     this.listeners = {
@@ -172,9 +185,9 @@ AFRAME.registerComponent('sixdof-object-control', {
       // The offset is the (fixed) offset from the target to the proxy.
       //
       // The positions calculated here are absolute new posiitons, not deltas.
-      const sx = this.targetPositionFromProxy(x, this.offset.x);
-      const sy = this.targetPositionFromProxy(y, this.offset.y);
-      const sz = this.targetPositionFromProxy(z, this.offset.z);
+      const sx = this.targetPositionFromProxy(x, this.offset.x, this.gridReference.x);
+      const sy = this.targetPositionFromProxy(y, this.offset.y, this.gridReference.y);
+      const sz = this.targetPositionFromProxy(z, this.offset.z, this.gridReference.z);
 
       // Rotation elements are absolute positions (rotation from base state).
       const sxr = this.targetRotationFromProxy(xr);
@@ -274,10 +287,10 @@ AFRAME.registerComponent('sixdof-object-control', {
 
   // Maps proxy position to target position by applying offset, and
   // snapping to units of positional movement.
-  targetPositionFromProxy: function(position, offset) {
-    return(Math.round(
-           (position + offset)/this.data.posunit) *
-           this.data.posunit);
+  targetPositionFromProxy: function(position, offset, reference) {
+    return((Math.round(
+           (position - reference + offset)/this.data.posunit) *
+           this.data.posunit) + reference);
   },
 
   // Maps proxy rotation to target rotation by snapping to units of rotational
