@@ -10,10 +10,11 @@ AFRAME.registerComponent('keyboard-hand-controls', {
      init: function () {
 
        this.selectedControlIndex = 0;
-       this.controlsTable = ["x", "y", "z", "Rx", "Ry", "Rz", "Grip", "Trigger", "A"];
+       this.controlsTable = ["x", "y", "z", "Rx", "Ry", "Rz", "Grip", "Trigger", "A", "random"];
        this.gripDown = false;
        this.triggerDown = false;
        this.ADown = false;
+       this.randomMovement = 0;
        this.worldPosition = new THREE.Vector3();
        this.listeners = {
          //plus: this.plus.bind(this),
@@ -86,6 +87,9 @@ AFRAME.registerComponent('keyboard-hand-controls', {
              this.selectedControlIndex = (event.key.charCodeAt(0) - "1".charCodeAt(0));
              break;
 
+         case "0":
+            this.selectedControlIndex = 9;
+            break;
        }
      },
 
@@ -162,6 +166,10 @@ AFRAME.registerComponent('keyboard-hand-controls', {
            }
            break;
 
+         case "random":
+           this.randomMovement += dir;
+           break;
+
          default:
            console.log("Unexpected value for control");
            break;
@@ -183,12 +191,29 @@ AFRAME.registerComponent('keyboard-hand-controls', {
        const yr = this.el.object3D.rotation.y;
        const zr = this.el.object3D.rotation.z;
 
+       // Move/rotate all at once.
+       if (this.randomMovement !== 0) {
+         this.el.object3D.position.x += ((Math.random() - 0.5) * this.randomMovement * this.posStep);
+         this.el.object3D.position.y += ((Math.random() - 0.5) * this.randomMovement * this.posStep);
+         this.el.object3D.position.z += ((Math.random() - 0.5) * this.randomMovement * this.posStep);
+
+         this.el.object3D.rotation.x += ((Math.random() - 0.5) * this.randomMovement * 10 * this.rotStep);
+         this.el.object3D.rotation.y += ((Math.random() - 0.5) * this.randomMovement * 10 * this.rotStep);
+         this.el.object3D.rotation.z += ((Math.random() - 0.5) * this.randomMovement * 10 * this.rotStep);
+
+         // Plus (rarely) further random movements that may trigger grip, trigger etc.
+         if (Math.random() > 0.99) {
+           this.applyMovement(this.controlsTable[6 + Math.floor(Math.random() * 2)], 1);
+         }
+       }
+
        var logtext = "Keyboard Virtual Controller\n"
        logtext += `Position: x: ${x.toFixed(2)}, y: ${y.toFixed(2)}, z: ${z.toFixed(2)}\n`
        logtext += `World Position: x: ${xw.toFixed(2)}, y: ${yw.toFixed(2)}, z: ${zw.toFixed(2)}\n`
        logtext += `Rotation: xr: ${xr.toFixed(1)}, yr: ${yr.toFixed(1)}, zr: ${zr.toFixed(1)}\n`
        logtext += `Grip Down: ${this.gripDown}\nTrigger Down: ${this.triggerDown}\n`
        logtext += `A Down: ${this.ADown}\n`
+       logtext += `Random Movement: ${this.randomMovement}\n`
        logtext += `Selected Control: ${this.controlsTable[this.selectedControlIndex]}\n`
        // select using keys starting from 3.
        var controls = this.controlsTable.map((value, index) => ((index + 1) + ":" + value)).join(", ");

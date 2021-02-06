@@ -1,4 +1,4 @@
- //"use strict";
+  //"use strict";
 
 /* Motion controls to move & rotate blocks in 3D space.
  *
@@ -77,7 +77,7 @@ AFRAME.registerComponent('sixdof-object-control', {
   init: function () {
 
     // This can be useful for debugging.
-    //this.tick = AFRAME.utils.throttleTick(this.tick, 100, this);
+    this.tick = AFRAME.utils.throttleTick(this.tick, 100, this);
 
     // State tracking.  We attach when we receive an "attach" event from the
     // proxy component.
@@ -167,8 +167,8 @@ AFRAME.registerComponent('sixdof-object-control', {
 
         logtext += logXYZ("Offset: ", this.offset, 2);
         logtext += logXYZ("Proxy: ", this.proxy.object3D.position, 2);
-        logtext += logXYZ("Proxy Rot: ", this.proxy.object3D.rotation, 1);
-
+        logtext += logQuat("Proxy Quat: ", this.proxy.object3D.quaternion, 1);
+        logtext += logQuat("Target Quat: ", this.el.object3D.quaternion, 1);
       }
 
       const x = this.proxy.object3D.position.x;
@@ -226,9 +226,9 @@ AFRAME.registerComponent('sixdof-object-control', {
       var logtext = "Target Object - not attached to proxy.\n"
 
       logtext += logXYZ("Proxy: ", this.proxy.object3D.position, 2);
-      logtext += logXYZ("Proxy Rot: ", this.proxy.object3D.rotation, 1, true);
       logtext += logXYZ("Target: ", this.el.object3D.position, 2);
-      logtext += logXYZ("Target Rot: ", this.el.object3D.rotation, 1, true);
+      logtext += logQuat("Proxy Quat: ", this.proxy.object3D.quaternion, 1);
+      logtext += logQuat("Target Quat: ", this.el.object3D.quaternion, 1);
 
       var logPanel = document.querySelector(this.data.logger);
       logPanel.setAttribute('text', "value: " + logtext);
@@ -392,34 +392,26 @@ AFRAME.registerComponent('sixdof-control-proxy', {
     console.log("triggerRotate: " + this.triggerRotate)
     console.log("triggerMove: " + this.triggerMove)
 
-    // Controls state
-    this.startRotateCRotation = {'x' : 0, 'y': 0, 'z': 0}; // controller
-    this.startRotatePRotation = {'x' : 0, 'y': 0, 'z': 0}; // proxy
+    // Controls state / workings.
+    this.controllerWorldRotationNow = new THREE.Quaternion(); // controllerNow
+    this.startRotateControllerWorldRotation = new THREE.Quaternion(); // controller
+    this.startRotateProxyLocalRotation = new THREE.Quaternion(); // proxy
+    this.startRotateProxyWorldRotation = new THREE.Quaternion(); // proxy
+    this.proxyRotationMovementTransform = new THREE.Quaternion();
+    this.proxyRotationWorldTransform = new THREE.Quaternion();
+
     this.rotateControlDown = false;
     this.startMovePosition = {'x' : 0, 'y': 0, 'z': 0};
     this.moveControlDown = false;
     this.gripDown = false;
     this.triggerDown = false;
 
-    // Maths stuff to handle the offset between rotation of controller &
-    // rotation of the proxy.
-    // This is typically non-zero because we intentionally align the proxy with
-    // the target when we attach.
-    //
-    // To allow for correct composition of rotations, we use
-    // Quaternions for this.
-
-    // Quaternions & Eulers used for working, to avoid creation & deletion within the
+    // Position & Quaternion used for working, to avoid creation & deletion within the
     // tick cycle.
-    this.quaternionA = new THREE.Quaternion();
-    this.quaternionB = new THREE.Quaternion();
-    this.quaternionAInverse = new THREE.Quaternion();
-    this.quaternionAInverseB = new THREE.Quaternion();
-    this.quaternionCRotNow = new THREE.Quaternion();
-    this.eulerA = new THREE.Euler(0,0,0);
-    this.eulerB = new THREE.Euler(0,0,0);
-    this.eulerC = new THREE.Euler(0,0,0);
     this.position = new THREE.Vector3(0,0,0);
+    this.quat = new THREE.Quaternion();
+    this.quatDebug = new THREE.Quaternion();
+
 
     // References to controller & target.
     this.controller = document.querySelector(this.data.controller)
@@ -457,9 +449,11 @@ AFRAME.registerComponent('sixdof-control-proxy', {
       // We should not assume proxy & controller are in the same
       // frame of reference, so we get the controller's world position,
       // and convert it to the local position in the proxy's frame of
-      // reference.
+      // reference (i.e. that of it's parent, if it has one).
       this.controller.object3D.getWorldPosition(this.el.object3D.position);
-      this.el.object3D.parent.worldToLocal(this.el.object3D.position);
+      if (this.el.object3D.parent) {
+        this.el.object3D.parent.worldToLocal(this.el.object3D.position);
+      }
 
       // We want to snap to the target's rotation.  TARGET -> PROXY.
       // We assume that the target & proxy *are* in the same frame of reference.
@@ -571,32 +565,28 @@ AFRAME.registerComponent('sixdof-control-proxy', {
     // Essential that we store this rotation *after* we have sync'd
     // rotation orientation with the target (done as part of the attach,
     // in the previous call)
-    copyXYZ(this.controller.object3D.rotation, this.startRotateCRotation);
-    copyXYZ(this.el.object3D.rotation, this.startRotatePRotation);
-    logXYZ("Controller Rotation at Trigger Down: ", this.startRotateCRotation, 1, true);
-    logXYZ("Proxy Rotation at Trigger Down: ", this.startRotatePRotation, 1, true);
+    this.controller.object3D.getWorldQuaternion(this.startRotateControllerWorldRotation);
+    this.el.object3D.getWorldQuaternion(this.startRotateProxyWorldRotation);
+    this.startRotateProxyLocalRotation.copy(this.el.object3D.quaternion);
+    logQuat("Controller World Rotation at Trigger Down: ", this.startRotateControllerWorldRotation, 1, true);
+    logQuat("Proxy Local Rotation at Trigger Down: ", this.startRotateProxyLocalRotation, 1, true);
 
-    // For Quaternion calculations, we also want to compute & save some Quaternions.
-    // using the same terminology as detailed in the tick function...
-    // - A = Controller Rotation when Trigger Down
-    // - B = Proxy Rotation when Trigger Down.
-    // - C = Controller Rotation now.
+    // We also compute a Quaternion which can be used to transform
+    // the controller's current world location into a desired local rotation for
+    // the proxy.
+    // See long comment in tick rotation processing for an explanation of this.
 
-    // So A is the Quaternion for this.startRotateCRotation and
-    // B is the Quaternion for this.startRotatePRotation and
-    this.eulerA.set(this.startRotateCRotation.x,
-                    this.startRotateCRotation.y,
-                    this.startRotateCRotation.z);
-    this.eulerB.set(this.startRotatePRotation.x,
-                    this.startRotatePRotation.y,
-                    this.startRotatePRotation.z);
-    this.quaternionA.setFromEuler(this.eulerA);
-    this.quaternionB.setFromEuler(this.eulerB); // !! FIXED BUG
-    this.quaternionAInverse = this.quaternionA.invert();
-    this.quaternionAInverseB = this.quaternionAInverse;
-    this.quaternionAInverseB.multiply(this.quaternionB);
+    // A and B are rotations of the controller & proxy at Rotation Start
+    // Post = (A)B
+    this.proxyRotationMovementTransform.copy(this.startRotateControllerWorldRotation);
+    this.proxyRotationMovementTransform.invert();
+    this.proxyRotationMovementTransform.multiply(this.startRotateProxyWorldRotation);
 
-
+    // E and B are the local & world rotations of the proxy at Rotation Start
+    // Pre = E(B)
+    this.proxyRotationWorldTransform.copy(this.startRotateProxyWorldRotation);
+    this.proxyRotationWorldTransform.invert();
+    this.proxyRotationWorldTransform.premultiply(this.startRotateProxyLocalRotation);
   },
 
   endRotate: function () {
@@ -610,7 +600,7 @@ AFRAME.registerComponent('sixdof-control-proxy', {
     // to match the target.
     // Note that Proxy may remain visible if Grip is still Down, so this is
     // worth doing.  Nicer for debug mode too...
-    copyXYZ(this.target.object3D.rotation, this.el.object3D.rotation);
+    this.el.object3D.quaternion.copy(this.target.object3D.quaternion)
 
     // If proxy controls should now be invisible/detached, do it.
     this.detachProxyIfNotNeeded();
@@ -655,10 +645,11 @@ AFRAME.registerComponent('sixdof-control-proxy', {
     var logtext = "Proxy Controller Object\n"
 
     if (this.data.debug) {
-      logtext += logQuat("Quaternion A:\n", this.quaternionA, 1);
-      logtext += logQuat("Quaternion B:\n", this.quaternionB, 1);
-      logtext += logQuat("Quaternion A inverse:\n", this.quaternionAInverse, 1);
-      logtext += logQuat("Quaternion A inverse B:\n", this.quaternionAInverseB, 1);
+      logtext += logQuat("Rot Start Controller World Quaternion:\n", this.startRotateControllerWorldRotation, 1);
+      logtext += logQuat("Rot Start Proxy Local Quaternion:\n", this.startRotateProxyLocalRotation , 1);
+      logtext += logQuat("Rot Start Proxy World Quaternion:\n", this.startRotateProxyWorldRotation , 1);
+      logtext += logQuat("Proxy Rotation Pre Transform Quaternion:\n", this.proxyRotationMovementTransform, 1);
+      logtext += logQuat("Proxy Rotation Post Transform Quaternion:\n", this.proxyRotationWorldTransform, 1);
 
       logtext += logXYZ("Now Pos: ", this.controller.object3D.position, 2);
       logtext += logXYZ("Now Rot: ", this.controller.object3D.rotation, 2);
@@ -666,8 +657,6 @@ AFRAME.registerComponent('sixdof-control-proxy', {
       logtext += `MoveControlDown: ${this.moveControlDown}\nRotateControlDownGripDown: ${this.rotateControlDown}\n`
       logtext += `Visible: ${this.proxyVisible}\n`
       logtext += logXYZ("Move Start Position: ", this.startMovePosition, 2);
-      logtext += logXYZ("Rotate Start Rotation (Controller): ", this.startRotateCRotation, 1);
-      logtext += logXYZ("Rotate Start Rotation (Proxy): ", this.startRotatePRotation, 1);
     }
 
     if ((this.moveControlDown) || (!this.rotateControlDown)) {
@@ -705,61 +694,67 @@ AFRAME.registerComponent('sixdof-control-proxy', {
       // visible to the user.  But this can be useful in debug mode, so we
       // rotate even when detached).
 
-      // - A = Controller Rotation when Trigger Down
-      // - B = Proxy Rotation when Trigger Down.
-      // - C = Controller Rotation now.
+      // What rotation to apply?
+      // Controller and Proxy may be in different frames of reference.
+      // What will make sense to the user is if the world rotation of the
+      // proxy mirrors the world rotation of the controller.
 
-      // We want to figure out D: What should Proxy Rotation now be?
+      // We can readily access:
+      // - The world rotation of the controller at Rotation Start (A)
+      // - The world rotation of the controller now (C)
+      // - The local & world rotations of the proxy at Rotation Start (E and B)
 
-      // D - B should equal C - A.  i.e. the two objects should have between
-      // transformed in the same way.
+      // We need to set the local rotation of the proxy that we want now.
+      //
+      // We *assume* that the relationship between local & world rotations
+      // of the proxy has not changed since Rotation Start.
+      // (I can't see how to easily avoid this assumption).
+      // This means that if the proxy/target are moving (e.g. they are on a
+      // rotating carousel, this may not work, but it should be ok in other cases).
 
-      // Rotations are more like multiplication than addition, so best express
-      // as D(B) = C(A) where (A) is the inverse of A etc.
-      // therefore D = C(A)B
+      // Here's the calculations...
+      // To calculate L, the local rotation to apply to the proxy, we need to
+      // calculate:
+      // 1. The World rotation of the proxy that we want:
+      // 2. A transform T that will take us from world rotation to local rotation.
+      // Then L = TR
 
-      // Which means that (A)B should be the rotation we apply to C to get D.
+      // What's R?
+      // R = C(A)B - where (A) is the inverse of A.
+      // We take the initial world rotation of the proxy, B.
+      // And we apply a transform consisting of the delta on the world rotaton
+      // of the controller, i.e. C(A).
 
-      // but we should do proper rotation composition, rather than
-      // linear addition (which is prone to problems like Gimbal Lock).
-      // This is done using Quaternions.
+      // What about T?
+      // we know that E = TB, since B is the world rotation equivalent of E.
+      // so T = E(B)
 
-      // 2 possible approaches:
-      // 1. Use deltas.  We just try to make a small adjustment to the
-      // current state.
-      // 2. Go right back to the Trigger Down event (A, B, C & D).
+      // So L = TR = E(B)C(A)B
 
-      // Approach 1 would require that we'd stored off the Controller position
-      // at the last tick.
-      // Then we do D = C(A)B for just the scope of the last tick, where
-      // "B" and "A" are replaced by the data from the last tick.
-      // We could do this using Quaternion.multiply.
+      // E(B) and (A)B can both be pre-calculated at the point we start rotation.
+      // E(B) represents the transform from world to local.
+      // (A)B represents the transform due to controller movement.
 
-      // Approach 2 would require the ability to overwrite the current rotation
-      // data of the Proxy.  We could do this using Quaternion.copy.
-      // Approach 2 is probably more performant, as we can pre-calculate A, (A)
-      // and B.
+      // Note that if C = A (no move since rotation trigger) then...
+      //... E(B)C(A)B = E = the local rotation of the proxy at rotation start
+      // (i.e. no movement) - which is absolutely correct.
 
-      // So let's try Approach 2.
-      // So D = C(A)B.
-      // (A)B is pre-computed
-      this.eulerC.set(this.controller.object3D.rotation.x,
-                      this.controller.object3D.rotation.y,
-                      this.controller.object3D.rotation.z);
-      this.quaternionCRotNow.setFromEuler(this.eulerC)
+      //Get C
+      this.controller.object3D.getWorldQuaternion(this.controllerWorldRotationNow);
 
-      // Calculate C(A)B and copy into the object's quaternion.
-      this.el.object3D.quaternion.copy(this.quaternionCRotNow.multiply(this.quaternionAInverseB));
+      // Calculate CA(B)
+      this.quat.multiplyQuaternions(this.controllerWorldRotationNow,
+                                    this.proxyRotationMovementTransform);
 
-      // Diags
-      /* These proved too verbose - commenting out.
-      logQuat("Quat A", this.quaternionA, dp = 2, debug = true);
-      logQuat("Quat A Inverse", this.quaternionAInverse, dp = 2, debug = true);
-      logQuat("Quat B", this.quaternionB, dp = 2, debug = true);
-      logQuat("Quat A Inverse B", this.quaternionAInverseB, dp = 2, debug = true);
-      logQuat("Quat C", this.quaternionCRotNow, dp = 2, debug = true);
-      logQuat("Quat D", this.el.object3D.quaternion, dp = 2, debug = true);
-      */
+      // if there has been no movement, this should just be (B), i.e.
+      // the inverse of this.startRotateProxyWorldRotation.
+      // Can't assert though, as may not be exactly equal due to FP errors.
+
+      // Now calculate E(B)C(A)B
+      this.quat.premultiply(this.proxyRotationWorldTransform);
+
+      // Overwrite the proxy's Quaternion with the computed value.
+      this.el.object3D.quaternion.copy(this.quat);
     }
 
     // Log diags info.
