@@ -77,7 +77,7 @@ AFRAME.registerComponent('sixdof-object-control', {
   init: function () {
 
     // This can be useful for debugging.
-    this.tick = AFRAME.utils.throttleTick(this.tick, 100, this);
+    //this.tick = AFRAME.utils.throttleTick(this.tick, 100, this);
 
     // State tracking.  We attach when we receive an "attach" event from the
     // proxy component.
