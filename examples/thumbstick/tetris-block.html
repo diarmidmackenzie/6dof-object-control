@@ -1,0 +1,72 @@
+<!-- Example usage of thumbstick-object-control
+     Control of a 3D Tetris block object
+     Movement in whole blocks only.
+     Rotation in 90 degree increments only.-->
+
+<!-- Left thumbstick controls movement.
+     Right thumbstick controls rotation.
+     Directional meaning of thumbsticks is determined by the positions of the
+     controllers.
+     For keyboard controls, use L-Shift and R-Shift to choose
+     which controller the keyboard affects.-->
+
+<html>
+  <head>
+    <title>Thumbstick Object Controls Example - Tetris Block</title>
+    <script src="https://aframe.io/releases/1.1.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/diarmidmackenzie/key-bindings@v0.2-alpha/key-bindings.min.js"></script>
+    <script src="../../src/thumbstick-object-control.js"></script>
+    <script src="../../src/keyboard-hand-controls.js"></script>
+  </head>
+  <body>
+    <a-scene>
+      <!-- Materials for Target Object -->
+      <a-mixin id="cube" geometry="primitive: box;"
+               scale="0.1 0.1 0.1"
+               material = "color:#F88"
+               shadow>
+      </a-mixin>
+
+      <a-camera position="0 1.6 0">
+      </a-camera>
+      <!-- Left Hand Controller.-->
+      <a-entity id="lhand" mixin="touch"
+                key-bindings="bindings:ShiftLeft=enable,ShiftRight=disable"
+                hand-controls="hand: left"
+                keyboard-hand-controls="logger:#log-panel3"
+                visible="true">
+      </a-entity>
+      <!-- Right Hand Controller.-->
+      <a-entity id="rhand" mixin="touch"
+                key-bindings="bindings:ShiftLeft=disable,ShiftRight=enable"
+                hand-controls="hand: right"
+                keyboard-hand-controls="logger:#log-panel2"
+                visible="true">
+      </a-entity>
+
+      <!-- Target Object: Note that for demo purposes we use movement:direct
+                          But for tetris integration we use movement:event-->
+      <!-- Many of these settings are defaults, but we explicitly set them
+           here for clarity of usage-->
+      <a-entity id="target" position="0 1.3 -1.1" class="shape"
+                thumbstick-object-control="movestick:#lhand;
+                                           rotatestick:#rhand;
+                                           posunit:0.1;
+                                           rotunit:90;
+                                           moverepeattime:250;
+                                           rotaterepeattime:250;
+                                           movement:direct">
+          <a-entity mixin="cube" position="-0.1 0 0"></a-entity>
+          <a-entity mixin="cube" position="0 0 0"></a-entity>
+          <a-entity mixin="cube" position="0.1 0 0"></a-entity>
+          <a-entity mixin="cube" position="0.1 0.1 0"></a-entity>
+      </a-entity>
+
+      <a-text id="log-panel2" value="RH Keyboard Sim Data" position="-1 3 -5" color="grey"></a-text>
+      <a-text id="log-panel3" value="LH Keyboard Sim Data" position="-7 3 -5" color="grey"></a-text>
+      <a-text value="L-Shift and R-Shift to target\n
+                     keyboard controls to a single controller" position="-7 0 -5" color="grey"></a-text>
+
+    </a-scene>
+  </body>
+</html>

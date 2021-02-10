@@ -10,7 +10,7 @@ AFRAME.registerComponent('keyboard-hand-controls', {
      init: function () {
 
        this.selectedControlIndex = 0;
-       this.controlsTable = ["x", "y", "z", "Rx", "Ry", "Rz", "Grip", "Trigger", "A", "random"];
+       this.controlsTable = ["x", "y", "z", "Rx", "Ry", "Rz", "Grip", "Trigger", "A", "random", "TSx", "TSy"];
        this.gripDown = false;
        this.triggerDown = false;
        this.ADown = false;
@@ -21,7 +21,10 @@ AFRAME.registerComponent('keyboard-hand-controls', {
          //minus: this.minus.bind(this),
          //select: this.select.bind(this),
          keydown: this.keydown.bind(this),
+         disable: this.disable.bind(this),
+         enable: this.enable.bind(this),
        };
+       this.disabled = false;
      },
 
      update: function () {
@@ -42,54 +45,83 @@ AFRAME.registerComponent('keyboard-hand-controls', {
        this.pause();
      },
 
+     enable: function () {
+       this.disabled = false;
+     },
+
+     disable: function () {
+       this.disabled = true;
+     },
+
      attachEventListeners: function () {
        //this.el.addEventListener('plus', this.listeners.plus, false);
        //this.el.addEventListener('minus', this.listeners.minus, false);
        //this.el.addEventListener('select', this.listeners.select, false);
        window.addEventListener('keydown', this.listeners.keydown, false);
+       this.el.addEventListener('enable', this.listeners.enable, false);
+       this.el.addEventListener('disable', this.listeners.disable, false);
      },
 
      removeEventListeners: function () {
        //this.el.removeEventListener('plus', this.listeners.select);
        //this.el.removeEventListener('minus', this.listeners.select);
        //this.el.removeEventListener('select', this.listeners.select);
-       this.el.removeEventListener('keydown', this.listeners.keydown);
+       window.removeEventListener('keydown', this.listeners.keydown);
+       this.el.removeEventListener('enable', this.listeners.enable);
+       this.el.removeEventListener('disable', this.listeners.disable);
      },
 
      plus: function (event) {
-       console.log("Plus event");
 
-       this.applyMovement(this.controlsTable[this.selectedControlIndex], 1);
+       if (!this.disabled) {
+         console.log("Plus event");
+         this.applyMovement(this.controlsTable[this.selectedControlIndex], 1);
+       }
+
      },
      minus: function (event) {
-       console.log("Minus event");
-       this.applyMovement(this.controlsTable[this.selectedControlIndex], -1);
+       if (!this.disabled) {
+         console.log("Minus event");
+         this.applyMovement(this.controlsTable[this.selectedControlIndex], -1);
+       }
      },
      keydown: function (event) {
-       switch (event.key) {
-         case "-":
-           this.minus(event);
-           break;
-
-         case "=":
-           this.plus(event);
-           break;
-
-         case "1":
-         case "2":
-         case "3":
-         case "4":
-         case "5":
-         case "6":
-         case "7":
-         case "8":
-         case "9":
-             this.selectedControlIndex = (event.key.charCodeAt(0) - "1".charCodeAt(0));
+       if (!this.disabled) {
+         switch (event.key) {
+           case "-":
+             this.minus(event);
              break;
 
-         case "0":
-            this.selectedControlIndex = 9;
-            break;
+           case "=":
+             this.plus(event);
+             break;
+
+           case "1":
+           case "2":
+           case "3":
+           case "4":
+           case "5":
+           case "6":
+           case "7":
+           case "8":
+           case "9":
+               this.selectedControlIndex = (event.key.charCodeAt(0) - "1".charCodeAt(0));
+               break;
+
+           case "0":
+              this.selectedControlIndex = 9;
+              break;
+
+           case "c":
+           case "C":
+              this.selectedControlIndex = 10;
+              break;
+
+           case "v":
+           case "V":
+              this.selectedControlIndex = 11;
+              break;
+         }
        }
      },
 
@@ -170,6 +202,25 @@ AFRAME.registerComponent('keyboard-hand-controls', {
            this.randomMovement += dir;
            break;
 
+         case "TSx":
+           this.el.emit("thumbstickmoved",
+           // simulate slightly noisy movement
+                        {x: dir * 0.8, y: 0.1});
+           // thumbstick recentered after move
+           // else it will seem to be held down.
+           this.el.emit("thumbstickmoved",
+                         {x: 0, y: 0});
+           break;
+
+         case "TSy":
+           this.el.emit("thumbstickmoved",
+                        {x: 0.1, y: 0.8 * dir});
+           // thumbstick recentered after move
+           // else it will seem to be held down.
+           this.el.emit("thumbstickmoved",
+                        {x: 0, y: 0});
+           break;
+
          default:
            console.log("Unexpected value for control");
            break;
@@ -205,9 +256,25 @@ AFRAME.registerComponent('keyboard-hand-controls', {
          if (Math.random() > 0.99) {
            this.applyMovement(this.controlsTable[6 + Math.floor(Math.random() * 2)], 1);
          }
+
+         // Also some random thumbstick movements.
+         if (Math.random() > 0.9) {
+           this.el.emit("thumbstickmoved",
+                        {x: (Math.random() * 2) - 1, y: (Math.random() * 2) - 1});
+           // thumbstick recentered after move
+           // else it will seem to be held down.
+           this.el.emit("thumbstickmoved",
+                        {x: 0, y: 0});
+         }
        }
 
-       var logtext = "Keyboard Virtual Controller\n"
+       var logtext = "Keyboard Virtual Controller - "
+       if (this.disabled) {
+         logtext += "DISABLED\n"
+       }
+       else {
+         logtext += "ACTIVE\n"
+       }
        logtext += `Position: x: ${x.toFixed(2)}, y: ${y.toFixed(2)}, z: ${z.toFixed(2)}\n`
        logtext += `World Position: x: ${xw.toFixed(2)}, y: ${yw.toFixed(2)}, z: ${zw.toFixed(2)}\n`
        logtext += `Rotation: xr: ${xr.toFixed(1)}, yr: ${yr.toFixed(1)}, zr: ${zr.toFixed(1)}\n`
@@ -217,8 +284,9 @@ AFRAME.registerComponent('keyboard-hand-controls', {
        logtext += `Selected Control: ${this.controlsTable[this.selectedControlIndex]}\n`
        // select using keys starting from 3.
        var controls = this.controlsTable.map((value, index) => ((index + 1) + ":" + value)).join(", ");
-       logtext += `Keys: select one of: ${controls.substring(0, 20)}\n${controls.substring(21)}\n`
-       logtext += `then - and = to move/pull triggers.`
+       logtext += `Keys: select one of: ${controls.substring(0, 20)}\n${controls.substring(21,55)}\n`
+       logtext += "C and V for ThumbstickX & ThumbstickY "
+       logtext += "then - and = to move/pull triggers."
 
        this.logPanel.setAttribute('text', "value: " + logtext);
      }
