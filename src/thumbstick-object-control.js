@@ -77,14 +77,11 @@ AFRAME.registerComponent('thumbstick-object-control', {
     this.mappingQuaternion = new THREE.Quaternion();
     this.thumbstickQuaternion = new THREE.Quaternion();
 
-    // Last position reported state.
-    // This is used to determine what position & rotation events to pass
-    // into the game engine.
-    this.lastReportedPosition = new THREE.Vector3();
-    this.lastReportedPosition.copy(this.el.object3D.position);
-
-    this.lastReportedOrientation = new THREE.Quaternion();
-    this.lastReportedOrientation.copy(this.el.object3D.quaternion);
+    // These are used to determine what position & rotation events to pass
+    // into the game engine, in events mode, combining the object's current
+    // position with the thumbstick movement.
+    this.reportPosition = new THREE.Vector3();
+    this.reportOrientation = new THREE.Quaternion();
 
     // other state.
     this.lastTickTime = 0;
@@ -280,8 +277,9 @@ AFRAME.registerComponent('thumbstick-object-control', {
     }
 
     if (this.emitEvents) {
-      this.lastReportedPosition.add(this.moveVector);
-      this.el.emit("move", this.lastReportedPosition);
+      this.reportPosition.copy(this.el.object3D.position)
+      this.reportPosition.add(this.moveVector);
+      this.el.emit("move", this.reportPosition);
     }
   },
 
@@ -608,9 +606,10 @@ AFRAME.registerComponent('thumbstick-object-control', {
     if (this.emitEvents) {
       // alongside the event, we want to report the final orientation of the
       // target, after applying the rotation.
-      this.lastReportedOrientation.multiply(this.thumbstickQuaternion);
-      this.lastReportedOrientation.normalize();
-      this.el.emit("rotate", this.lastReportedOrientation);
+      this.reportOrientation.copy(this.el.object3D.quaternion);
+      this.reportOrientation.multiply(this.thumbstickQuaternion);
+      this.reportOrientation.normalize();
+      this.el.emit("rotate", this.reportOrientation);
     }
   }
 });
