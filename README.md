@@ -199,7 +199,22 @@ The following settings are identical to sixdof-object-control component - see ab
 * rotunit: the minimum unit of rotational movement in degrees.  Default: 90 degrees.
 * movement: one of: "direct", "events" or "both".  Default: direct.
 
-### Debugging
+
+
+## Movement events
+
+Many applications will want to use movement events, rather than giving over direct control of the object.  This allows for interpolation of collision detection & other factors.
+
+This section details the events that make up this interface.
+
+Two events are generated, always on the target object.
+
+- move.  This includes additional event detail in the form of a Vector3 representing the resulting position of the target following the movement.  Note that this is an absolute position, not a relative movement.
+- rotate.  This includes additional event detail in the form of a Quaternion representing the resulting orientation of the target, following the rotation.  Note that this is an (absolute) orientation, not a (relative) rotation.
+
+
+
+## Debugging
 
 The following debug capabilities have mostly been implemented for debugging problems with these components, but may also be useful for debugging applications that use these components.
 
@@ -210,7 +225,7 @@ Set logger to different elements for different components, or they will overwrit
 
 
 
-### keyboard-hand-controls
+## keyboard-hand-controls
 
 Debugging in VR can be difficult, as VR browsers don't have the same level of diagnostics that are available in desktop browsers (Inspect panel, console logs, etc.)
 

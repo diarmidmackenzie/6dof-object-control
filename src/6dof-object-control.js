@@ -274,7 +274,9 @@ AFRAME.registerComponent('sixdof-object-control', {
         zr !== this.lastReportedRotation.z) {
 
         // There has been some movement.
-        var eventData = new THREE.Euler(xr, yr, zr);
+        var euler = new THREE.Euler(xr, yr, zr);
+        var eventData = new THREE.Quaternion();
+        eventData.setFromEuler(euler);
         changed = true;
         this.el.emit("rotate", eventData);
 

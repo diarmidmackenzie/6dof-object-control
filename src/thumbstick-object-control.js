@@ -83,8 +83,8 @@ AFRAME.registerComponent('thumbstick-object-control', {
     this.lastReportedPosition = new THREE.Vector3();
     this.lastReportedPosition.copy(this.el.object3D.position);
 
-    this.lastReportedRotation = new THREE.Quaternion();
-    this.lastReportedRotation.copy(this.el.object3D.quaternion);
+    this.lastReportedOrientation = new THREE.Quaternion();
+    this.lastReportedOrientation.copy(this.el.object3D.quaternion);
 
     // other state.
     this.lastTickTime = 0;
