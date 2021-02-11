@@ -551,9 +551,20 @@ AFRAME.registerComponent('thumbstick-object-control', {
 
     // We need this axis to be in alignment with some integer
     // multiple of the configured rotation angle.
-    //
-    // We achieve this by converting to spherical co-ordinates, rounding the
-    // two angle, and converting back, then normalizing.
+
+    // The alignment should be in the space of the target object, which may be
+    // different from world space.
+    // But we want the axis expressed in world space.
+    // So we convert to target space, then align, then convert back to world
+    // space.
+
+    // First convert to target space.
+    this.el.object3D.getWorldQuaternion(this.mappingQuaternion);
+    this.mappingQuaternion.invert();
+    axisVector.applyQuaternion(this.mappingQuaternion);
+
+    // Now we align.  We achieve this by converting to spherical co-ordinates,
+    // rounding the two angles, and converting back, then normalizing.
     this.sphericalAxis.setFromVector3(axisVector);
     this.sphericalAxis.phi =
        Math.round(this.sphericalAxis.phi/this.rotationUnit) * this.rotationUnit;
@@ -562,6 +573,10 @@ AFRAME.registerComponent('thumbstick-object-control', {
 
     axisVector.setFromSpherical(this.sphericalAxis);
     axisVector.normalize();
+
+    // Finally convert back to world space.
+    this.mappingQuaternion.invert();
+    axisVector.applyQuaternion(this.mappingQuaternion);
   },
 
   convertRotationToTargetFrameOfReference: function() {

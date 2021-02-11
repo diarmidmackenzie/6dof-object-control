@@ -1,5 +1,17 @@
 <!--Test of thumbstick movement and rotation with
-    Target object in a different frame of reference. -->
+    Target object in different frames of reference
+
+    Note that movement and rotation of these objects
+    are all computed relative to the "grid" that applies in their frame
+    of reference.
+
+    So it is *not* expected that all these objects move identically.
+    This test provides a lot of examples of movement & rotation, but it's
+    not trivial to look at the results and judge whether they are correct or
+    not... (except in the cases where they are wildly wrong).
+
+    Care is required in analyzing the results.
+  -->
 
 <html>
   <head>
@@ -53,12 +65,161 @@
         </a-entity>
       </a-entity>
 
-      <!-- Target Object within a different frame of reference-->
-      <a-entity position = "0 1.3 -1.1" rotation = "0 90 90">
-        <a-entity id="target" position="0 0 0" rotation= "0 0 -90" thumbstick-object-control="logger:#log-panel1;debug:true" gltf-model="#triceratops"
-                    scale="0.002 0.002 0.002">
+      <a-mixin id="cube" geometry="primitive: box;"
+               scale="0.1 0.1 0.1"
+               material = "color:#F88"
+               shadow>
+      </a-mixin>
+
+      <!-- Target Objects within a different frames of reference-->
+      <a-entity position = "-2 2 -3" rotation = "0 0 0">
+        <a-entity id="target" position="0 0 0" class="shape"
+                  thumbstick-object-control>
+            <a-entity mixin="cube" position="-0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0.1 0"></a-entity>
         </a-entity>
       </a-entity>
+      <a-entity position = "-1 2 -3" rotation = "0 0 30">
+        <a-entity id="target" position="0 0 0" class="shape"
+                  thumbstick-object-control>
+            <a-entity mixin="cube" position="-0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0.1 0"></a-entity>
+        </a-entity>
+      </a-entity>
+      <a-entity position = "0 2 -3" rotation = "0 0 45">
+        <a-entity id="target" position="0 0 0" class="shape"
+                  thumbstick-object-control>
+            <a-entity mixin="cube" position="-0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0.1 0"></a-entity>
+        </a-entity>
+      </a-entity>
+      <a-entity position = "1 2 -3" rotation = "0 0 80">
+        <a-entity id="target" position="0 0 0" class="shape"
+                  thumbstick-object-control>
+            <a-entity mixin="cube" position="-0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0.1 0"></a-entity>
+        </a-entity>
+      </a-entity>
+      <a-entity position = "2 2 -3" rotation = "0 0 90">
+        <a-entity id="target" position="0 0 0" class="shape"
+                  thumbstick-object-control>
+            <a-entity mixin="cube" position="-0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0.1 0"></a-entity>
+        </a-entity>
+      </a-entity>
+
+<!-- 2nd row.  Y axis rotations-->
+      <a-entity position = "-2 1 -3" rotation = "0 0 0">
+        <a-entity id="target" position="0 0 0" class="shape"
+                  thumbstick-object-control>
+            <a-entity mixin="cube" position="-0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0.1 0"></a-entity>
+        </a-entity>
+      </a-entity>
+      <a-entity position = "-1 1 -3" rotation = "0 30 0">
+        <a-entity id="target" position="0 0 0" class="shape"
+                  thumbstick-object-control>
+            <a-entity mixin="cube" position="-0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0.1 0"></a-entity>
+        </a-entity>
+      </a-entity>
+      <a-entity position = "0 1 -3" rotation = "0 45 0">
+        <a-entity id="target" position="0 0 0" class="shape"
+                  thumbstick-object-control>
+            <a-entity mixin="cube" position="-0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0.1 0"></a-entity>
+        </a-entity>
+      </a-entity>
+      <a-entity position = "1 1 -3" rotation = "0 80 0">
+        <a-entity id="target" position="0 0 0" class="shape"
+                  thumbstick-object-control>
+            <a-entity mixin="cube" position="-0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0.1 0"></a-entity>
+        </a-entity>
+      </a-entity>
+      <a-entity position = "2 1 -3" rotation = "0 90 0">
+        <a-entity id="target" position="0 0 0" class="shape"
+                  thumbstick-object-control>
+            <a-entity mixin="cube" position="-0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0.1 0"></a-entity>
+        </a-entity>
+      </a-entity>
+
+<!-- 3rd row.  X axis rotations-->
+      <a-entity position = "-2 0 -3" rotation = "0 0 0">
+        <a-entity id="target" position="0 0 0" class="shape"
+                  thumbstick-object-control>
+            <a-entity mixin="cube" position="-0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0.1 0"></a-entity>
+        </a-entity>
+      </a-entity>
+      <a-entity position = "-1 0 -3" rotation = "30 0 0">
+        <a-entity id="target" position="0 0 0" class="shape"
+                  thumbstick-object-control>
+            <a-entity mixin="cube" position="-0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0.1 0"></a-entity>
+        </a-entity>
+      </a-entity>
+      <a-entity position = "0 0 -3" rotation = "45 0 0">
+        <a-entity id="target" position="0 0 0" class="shape"
+                  thumbstick-object-control>
+            <a-entity mixin="cube" position="-0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0.1 0"></a-entity>
+        </a-entity>
+      </a-entity>
+      <a-entity position = "1 0 -3" rotation = "80 0 0">
+        <a-entity id="target" position="0 0 0" class="shape"
+                  thumbstick-object-control>
+            <a-entity mixin="cube" position="-0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0.1 0"></a-entity>
+        </a-entity>
+      </a-entity>
+      <a-entity position = "2 0 -3" rotation = "90 0 0">
+        <a-entity id="target" position="0 0 0" class="shape"
+                  thumbstick-object-control>
+            <a-entity mixin="cube" position="-0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0 0"></a-entity>
+            <a-entity mixin="cube" position="0.1 0.1 0"></a-entity>
+        </a-entity>
+      </a-entity>
+
+      <a-text id="log-panel2"
+      value="Note that movement and rotation of these objects
+             are all computed relative to the 'grid' that applies in their frame
+             of reference.
+
+             So it is *not* expected that all these objects move identically.
+             See comments at the top of this HTML file for more details"
+             position="2 4 -5" color="grey"></a-text>
     </a-scene>
   </body>
 </html>
