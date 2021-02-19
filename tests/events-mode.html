@@ -1,0 +1,96 @@
+<!-- Control of a block object
+     Movement in whole blocks only.
+     Rotation in 90 degree increments only.
+     Subject to Events movement, and constrained to a small square grid -->
+
+<html>
+  <head>
+    <title>6DoF Object Controls Example - Tetris Block</title>
+    <script src="https://aframe.io/releases/1.1.0/aframe.min.js"></script>
+    <script src="../src/6dof-object-control.js"></script>
+    <script src="../src/keyboard-hand-controls.js"></script>
+    <script>
+      AFRAME.registerComponent('constrained-movement', {
+
+        events: {
+           move: function (event) {
+             // Check if within bounds...
+             var position = event.detail;
+             if ((Math.abs(position.x) <= 0.201) &&
+                 (Math.abs(position.y - 1.3) <= 0.201) &&
+                 (Math.abs(position.z + 1) <= 0.201)) {
+
+               //ok to move.
+               this.el.object3D.position.copy(position);
+             }
+           }
+         }
+       });
+
+
+
+    </script>
+  </head>
+  <body>
+    <a-scene>
+      <!-- Materials for Target Object -->
+      <a-mixin id="cube" geometry="primitive: box;"
+               scale="0.1 0.1 0.1"
+               material = "color:#F88"
+               shadow>
+      </a-mixin>
+
+      <!-- Materials for Proxy Object -->
+      <a-mixin id="proxy-cube" geometry="primitive: box;"
+              scale="0.1 0.1 0.1"
+              material = "color:#888; transparent:true; opacity:0.5"
+              shadow>
+      </a-mixin>
+
+      <a-camera position="0 1.6 0">
+      </a-camera>
+      <!-- Right Hand Controller.  Specify a position for the case where
+          we are running in a 2D browser, and the contoller is Keyboard
+          emulated. -->
+      <a-entity id="rhand" mixin="touch"
+                hand-controls="hand: right"
+                keyboard-hand-controls="logger:#log-panel3"
+                position="0.2 1.3 -0.3">
+      </a-entity>
+
+      <!-- Proxy Object -->
+      <a-entity id="proxy" sixdof-control-proxy="controller:#rhand;target:#target;logger:#log-panel2;debug:true" class="shape-controller" >
+          <a-entity mixin="proxy-cube" position="0 0 0"></a-entity>
+      </a-entity>
+
+      <!-- Target Object: Note that for demo purposes we use movement:direct
+                          But for tetris integration we use movement:event-->
+      <a-entity id="target" position="0 1.3 -1" class="shape"
+                sixdof-object-control="proxy:#proxy;movement:events;logger:#log-panel1;debug:true"
+                constrained-movement>
+          <a-entity mixin="cube" position="0 0 0"></a-entity>
+      </a-entity>
+
+      <!-- Container - to illustate bounds-->
+      <a-box id="container" position="0 1.3 -1"
+             material="wireframe: true; color: black"
+             scale="0.5 0.5 0.5"
+      </a-box>
+
+        <!-- Log Panels used for Diagnostics -->
+        <a-text id="log-panel1" value="Target Data" position="3 3 -5" color="grey"></a-text>
+        <a-text id="log-panel2" value="Proxy Controller Data" position="-1 3 -5" color="grey"></a-text>
+        <a-text id="log-panel3" value="Keyboard Sim Data" position="-5 3 -5" color="grey"></a-text>
+
+        <a-text value="Keyboard controls for movement...\n
+                       Move: 7 then '=' for Grip, then 1/2/3 then '-' and '=' for -/+ x/y/z-movement.\n
+                       The small cube should stay within the wireframe box.\n
+                       If the controller is moved beyond the point where the object has hit a boundary,
+                       movement in any direction (within the wireframe box) should still remain possible
+                       no matter where the proxy controller is."
+
+                       position="-9 -1 -5" color="grey"></a-text>
+
+    </a-scene>
+  </body>
+</html>

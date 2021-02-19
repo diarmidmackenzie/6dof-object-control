@@ -135,6 +135,10 @@ AFRAME.registerComponent('sixdof-object-control', {
 
     // calculating the offset to use when calculating target position from proxy position.
     // Note, we assume target & proxy ar ein the same frame of reference.
+    // This is the *starting* offset.  It may not be fixed, as when we use "move" events,
+    // those events may not lead to actual movements of the target, due to collisions,
+    // boundaries etc.
+    // So we update offset
     this.offset = {'x': this.el.object3D.position.x - this.proxy.object3D.position.x,
                    'y': this.el.object3D.position.y - this.proxy.object3D.position.y,
                    'z': this.el.object3D.position.z - this.proxy.object3D.position.z}
@@ -182,9 +186,10 @@ AFRAME.registerComponent('sixdof-object-control', {
       // The orientation of the target is the same as the proxy
       // but snapped to a position grid, and rotations of fixed values
       // (e.g. 90 degrees, which is the default).
-      // The offset is the (fixed) offset from the target to the proxy.
+      // The offset is the offset from the target to the proxy (which may vary, if
+      // the controlled target is not moved in response to a "move" event)
       //
-      // The positions calculated here are absolute new posiitons, not deltas.
+      // The positions calculated here are absolute new positions, not deltas.
       const sx = this.targetPositionFromProxy(x, this.offset.x, this.gridReference.x);
       const sy = this.targetPositionFromProxy(y, this.offset.y, this.gridReference.y);
       const sz = this.targetPositionFromProxy(z, this.offset.z, this.gridReference.z);
@@ -248,12 +253,24 @@ AFRAME.registerComponent('sixdof-object-control', {
       // There has been some movement.
       changed = true;
 
-     // event Data contains the new position.
+      // event Data contains the new position.
+      // Don't assume (x, y, z) is the correct absolute position,
+      // since the target may be under influences other than this controller.
+      // Determine the "drift" of the target vs. what we expect, and factor this
+      // into the position we report.
+      var drift = this.el.object3D.position.clone();
+      drift.sub(this.lastReportedPosition);
+
       var eventData = new THREE.Vector3(x, y, z);
+      eventData.add(drift);
       this.el.emit("move", eventData);
 
-      // Update record of the position we reported.
-      copyXYZ(this.el.object3D.position, this.lastReportedPosition);
+      // Update record of the position we reported, and update our offset to
+      // reflect the drift.
+      copyXYZ(eventData, this.lastReportedPosition);
+      this.offset.x += drift.x;
+      this.offset.y += drift.y;
+      this.offset.z += drift.z;
     }
 
     return(changed);
@@ -551,7 +568,7 @@ AFRAME.registerComponent('sixdof-control-proxy', {
     this.triggerDown = true;
 
     if (!this.disabled) {
-      
+
       if (this.triggerRotate &&
         !(this.gripRotate && this.gripDown)) {
         this.startRotate();
