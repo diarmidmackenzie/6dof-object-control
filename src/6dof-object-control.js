@@ -328,7 +328,8 @@ AFRAME.registerComponent('sixdof-control-proxy', {
     logger:      {type: 'string', default: "#log-panel"},
     debug:       {type: 'boolean', default: false},
     move:        {type: 'string', default: "grip"},
-    rotate:      {type: 'string', default: "trigger"}
+    rotate:      {type: 'string', default: "trigger"},
+    disabled:    {type: 'boolean', default: false}
   },
 
   init: function () {
@@ -407,6 +408,7 @@ AFRAME.registerComponent('sixdof-control-proxy', {
     this.moveControlDown = false;
     this.gripDown = false;
     this.triggerDown = false;
+    this.disabled = this.data.disabled;
 
     // Position & Quaternion used for working, to avoid creation & deletion within the
     // tick cycle.
@@ -429,7 +431,9 @@ AFRAME.registerComponent('sixdof-control-proxy', {
       triggerdown: this.onTriggerDown.bind(this),
       triggerup: this.onTriggerUp.bind(this),
       gripdown: this.onGripDown.bind(this),
-      gripup: this.onGripUp.bind(this)
+      gripup: this.onGripUp.bind(this),
+      enabled: this.onEnabled.bind(this),
+      disabled: this.onDisabled.bind(this)
     };
     this.attachEventListeners();
 
@@ -437,8 +441,48 @@ AFRAME.registerComponent('sixdof-control-proxy', {
 
   update: function () {
 
+    this.disabled = this.data.disabled;
     this.controller = document.querySelector(this.data.controller)
     this.target = document.querySelector(this.data.target)
+  },
+
+  onEnabled: function () {
+    if (this.data.debug) {
+      console.log("6DoF Proxy Controls Enabled")
+    }
+    this.disabled = false;
+
+    // If Grip is already down, or Trigger is already down, handle as if they
+    // were just pressed.
+    if (this.gripDown) {
+      this.onGripDown()
+    }
+
+    if (this.triggerDown) {
+      this.onTriggerDown()
+    }
+  },
+
+  onDisabled: function () {
+    if (this.data.debug) {
+      console.log("6DoF Proxy Controls Disabled")
+    }
+
+    // If Grip or Trigger are down, act as if they were released.
+    // but keep track of the fact that they are down, so that we can
+    // put things back as they were if we are enabled again before they are
+    // released.
+    if (this.gripDown) {
+      this.onGripUp()
+      this.gripDown = true;
+    }
+
+    if (this.triggerDown) {
+      this.onTriggerUp()
+      this.tiggerDown = true;
+    }
+
+    this.disabled = true;
   },
 
   // Safe to call this if the proxy is already attached/visible:
@@ -481,7 +525,7 @@ AFRAME.registerComponent('sixdof-control-proxy', {
     this.target.emit("attach");
   },
 
-  // Detach Proxy from Targetif no longer needed.
+  // Detach Proxy from Target if no longer needed.
   // This is safe to call if controls already detached/invisible.
   detachProxyIfNotNeeded: function () {
 
@@ -502,58 +546,70 @@ AFRAME.registerComponent('sixdof-control-proxy', {
     }
   },
 
-  onTriggerDown: function (event) {
+  onTriggerDown: function () {
 
     this.triggerDown = true;
 
-    if (this.triggerRotate &&
-      !(this.gripRotate && this.gripDown)) {
-      this.startRotate();
-    }
-    if (this.triggerMove &&
-      !(this.gripMove && this.gripDown)) {
-      this.startMove();
+    if (!this.disabled) {
+      
+      if (this.triggerRotate &&
+        !(this.gripRotate && this.gripDown)) {
+        this.startRotate();
+      }
+      if (this.triggerMove &&
+        !(this.gripMove && this.gripDown)) {
+        this.startMove();
+      }
     }
   },
 
-  onTriggerUp: function (event) {
+  onTriggerUp: function () {
 
     this.triggerDown = false;
 
-    if (this.triggerRotate &&
-      !(this.gripRotate && this.gripDown)) {
-      this.endRotate();
-    }
-    if (this.triggerMove &&
-      !(this.gripMove && this.gripDown)) {
-      this.endMove();
+    if (!this.disabled) {
+
+      if (this.triggerRotate &&
+        !(this.gripRotate && this.gripDown)) {
+        this.endRotate();
+      }
+      if (this.triggerMove &&
+        !(this.gripMove && this.gripDown)) {
+        this.endMove();
+      }
     }
   },
 
-  onGripDown: function (event) {
+  onGripDown: function () {
 
     this.gripDown = true;
 
-    if (this.gripRotate &&
-      !(this.triggerRotate && this.triggerDown)) {
-      this.startRotate();
-    }
-    if (this.gripMove &&
-      !(this.triggerMove && this.triggerDown)) {
-      this.startMove();
+    if (!this.disabled) {
+
+      if (this.gripRotate &&
+        !(this.triggerRotate && this.triggerDown)) {
+        this.startRotate();
+      }
+      if (this.gripMove &&
+        !(this.triggerMove && this.triggerDown)) {
+        this.startMove();
+      }
     }
   },
-  onGripUp: function (event) {
+  onGripUp: function () {
 
     this.gripDown = false;
 
-    if (this.gripRotate &&
-      !(this.triggerRotate && this.triggerDown)) {
-      this.endRotate();
-    }
-    if (this.gripMove &&
-      !(this.triggerMove && this.triggerDown)) {
-      this.endMove();
+    if (!this.disabled) {
+
+      if (this.gripRotate &&
+        !(this.triggerRotate && this.triggerDown)) {
+        this.endRotate();
+      }
+      if (this.gripMove &&
+        !(this.triggerMove && this.triggerDown)) {
+        this.endMove();
+      }
     }
   },
 
@@ -632,6 +688,8 @@ AFRAME.registerComponent('sixdof-control-proxy', {
     this.controller.addEventListener('triggerdown', this.listeners.triggerdown, false);
     this.controller.addEventListener('gripup', this.listeners.gripup, false);
     this.controller.addEventListener('gripdown', this.listeners.gripdown, false);
+    this.el.addEventListener('controls-enabled', this.listeners.enabled, false);
+    this.el.addEventListener('controls-disabled', this.listeners.disabled, false);
   },
 
   tick: function (time, timeDelta) {

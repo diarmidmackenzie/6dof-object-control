@@ -1,0 +1,86 @@
+<!-- For testing enable/disable of controls.
+     Not run in debug mode, so we can observe the proxy appear/disappear
+     (proxy doesn;t vanish in debug mode)-->
+
+<html>
+  <head>
+    <title>6DoF Object Controls Example - Enable/DIsable Controls</title>
+    <script src="https://aframe.io/releases/1.1.0/aframe.min.js"></script>
+    <script src="https://unpkg.com/aframe-event-set-component@4.2.1/dist/aframe-event-set-component.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/diarmidmackenzie/key-bindings@v0.2-alpha/key-bindings.min.js"></script>
+    <script src="../src/6dof-object-control.js"></script>
+    <script src="../src/keyboard-hand-controls.js"></script>
+  </head>
+  <body>
+    <a-scene>
+      <!-- Asset for Target Object -->
+      <a-asset-item id="triceratops"
+        src="https://cdn.aframe.io/examples/ar/models/triceratops/scene.gltf"
+        response-type="arraybuffer" crossorigin="anonymous">
+      </a-asset-item>
+      <a-entity id="rig" movement-controls>
+
+        <a-camera position="0 1.6 0" rotation="0 0 0">
+          <a-text id="log-panel1" value="Target Data" position="3 3 -7" color="grey"></a-text>
+          <a-text id="log-panel2" value="Proxy Controller Data" position="-1 3 -7" color="grey"></a-text>
+          <a-text id="log-panel3" value="Keyboard Sim Data" position="-5 3 -7" color="grey"></a-text>
+
+          <a-text value="Controls are disabled by default.
+                         Z to enable controls, X to disable.
+                         Easiest way to test:
+                         Press 0, then = to set up some random control.
+                         Now press Z to enable controls, X to disable.
+                         When controls are enabled, Proxy should be visible, and target
+                         should move if trigger or grip is pressed, but not otherwise.
+                         When controls are disabled, proxy should never be visible
+                         and target should not move.
+
+                         Other keyboard controls if needed...\n
+                         Move: 7 then '=' for Grip, then 1/2/3 then '=' for x/y/z-movement.\n
+                         Rotate: 8 then '=' for Trigger, then 4/5/6 then '=' for x/y/z-rotation.\n
+                         ALSO: "
+                         position="-7 -1 -5" color="grey"></a-text>
+           <a-text id="indicator" value="CONTROLS ENABLED"
+                          position="-7 4 -5" color="grey" visible="false"></a-text>
+        </a-camera>
+        <!-- Right Hand Controller.  Specify a position for the case where
+            we are running in a 2D browser, and the contoller is Keyboard
+            emulated. -->
+        <!-- "rhand" matches default for controller parameter-->
+        <a-entity id="rhand"
+                  keyboard-hand-controls="logger:#log-panel3"
+                  visible="true"
+                  position="0.2 1.3 -0.4"
+                  rotation="0 0 0">
+                  <a-box scale="0.05 0.3 0.05" material="color:red">
+                    </a-box>
+        </a-entity>
+    </a-entity>
+
+      <!-- Alternate frame of reference for proxy & target
+           Note, it is assumed that they are within the same frame of
+           referece as each other, since if they were not, the proxy
+           would not provide a useful point of reference for controlling the
+           movements of the target-->
+
+      <a-entity position = "0 2 -2" rotation = "0 0 -90"
+        <!-- Proxy Object -->
+        <!-- "proxy" matches default for proxy parameter-->
+        <!-- No physical object actually required here, if you don't want the
+             Proxy to be visible -->
+        <a-entity id="proxy" sixdof-control-proxy="logger:#log-panel2;disabled:true" gltf-model="#triceratops" scale="0.002 0.002 0.002"
+                  key-bindings="debug:true;bindings:KeyZ=controls-enabled,KeyX=controls-disabled"
+                  event-set__disable="_target:#indicator;_event:controls-disabled; visible: false"
+                  event-set__enable="_target:#indicator;_event:controls-enabled; visible: true">
+        </a-entity>
+
+        <!-- Target Object -->
+        <!-- "target" matches default for target parameter-->
+       <a-entity id="target" position="0 1.3 -1.1" sixdof-object-control="logger:#log-panel1" gltf-model="#triceratops"
+                  scale="0.002 0.002 0.002"
+                  position="0 0 0">
+       </a-entity>
+     </a-entity>
+    </a-scene>
+  </body>
+</html>

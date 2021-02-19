@@ -48,6 +48,11 @@ AFRAME.registerComponent('thumbstick-object-control', {
 *                 Event data includes both the Euler Angles & the Quaternion
 *                 representation of the rotation.
 *                 This is an absolute new rotation (from zero), not a delta.
+* disabled: Whether the controls are disabled at start of day.  Default: false.
+*          Disabled controls can be enabled by emitting the
+*          controls-enabled event on this object.
+*          Distinct from "pause" so we can disable controls without pausing the
+*          whole entity.
 */
   schema: {
     logger:     {type: 'selector', default: "#log-panel"},
@@ -58,7 +63,8 @@ AFRAME.registerComponent('thumbstick-object-control', {
     rotunit:     {type: 'number', default: 90},
     moverepeattime: {type: 'number', default: 250},
     rotaterepeattime: {type: 'number', default: 250},
-    movement:    {type: 'string', default: "direct"}
+    movement:    {type: 'string', default: "direct"},
+    disabled: {type: 'boolean', default: false}
   },
 
   init: function () {
@@ -89,6 +95,7 @@ AFRAME.registerComponent('thumbstick-object-control', {
     this.lastMoveThumbstickEvent = null;
     this.lastRotateTime = 0;
     this.lastRotateThumbstickEvent = null;
+    this.disabled = this.data.disabled;
 
     // debug info
     if (this.data.debug) {
@@ -134,7 +141,9 @@ AFRAME.registerComponent('thumbstick-object-control', {
     // (to allow for reconfiguration after initialization).
     this.listeners = {
       moveThumbstickMoved: this.moveThumbstickMoved.bind(this),
-      rotateThumbstickMoved: this.rotateThumbstickMoved.bind(this)
+      rotateThumbstickMoved: this.rotateThumbstickMoved.bind(this),
+      enabled: this.onEnabled.bind(this),
+      disabled: this.onDisabled.bind(this)
     };
   },
 
@@ -151,10 +160,30 @@ AFRAME.registerComponent('thumbstick-object-control', {
     this.moveController = this.data.movestick;
     this.rotateController = this.data.rotatestick;
 
+    // Update enabled/disabled state.
+    this.disabled = this.data.disabled;
+
     this.attachEventListeners();
   },
 
+  onEnabled: function () {
+    if (this.data.debug) {
+      console.log("Thumbstick Controls Enabled")
+    }
+    this.disabled = false;
+  },
+
+  onDisabled: function () {
+    if (this.data.debug) {
+      console.log("Thumbstick Controls Disabled")
+    }
+    this.disabled = true;
+  },
+
   attachEventListeners: function () {
+
+    this.el.addEventListener('controls-enabled', this.listeners.enabled, false);
+    this.el.addEventListener('controls-disabled', this.listeners.disabled, false);
 
     if (this.moveController) {
       this.moveController.addEventListener('thumbstickmoved',
@@ -183,8 +212,8 @@ AFRAME.registerComponent('thumbstick-object-control', {
     // exact position of the thumbstick, a single thumbstick move generates
     // a whole stream of thumbstickmoved events, and we don't want to act on
     // all of them.
-    if ((this.lastMoveThumbstickEvent) &&
-        (this.lastTickTime - this.lastMoveTime < this.data.moverepeattime)) {
+    if (this.disabled || ((this.lastMoveThumbstickEvent) &&
+        (this.lastTickTime - this.lastMoveTime < this.data.moverepeattime))) {
       return;
     }
 
@@ -297,7 +326,7 @@ AFRAME.registerComponent('thumbstick-object-control', {
 
     this.lastTickTime = time;
 
-    if (this.data.debug)
+    if ((this.data.debug)  && (!this.disabled))
     {
       // Project rotation that would arise from an X thumbstick movement.
       projectThumbstickMovement.call(this, this.debug.x, 1, 0);
@@ -417,8 +446,8 @@ AFRAME.registerComponent('thumbstick-object-control', {
     // exact position of the thumbstick, a single thumbstick move generates
     // a whole stream of thumbstickmoved events, and we don't want to act on
     // all of them.
-    if ((this.lastRotateThumbstickEvent) &&
-        (this.lastTickTime - this.lastRotateTime < this.data.rotaterepeattime)) {
+    if (this.disabled || ((this.lastRotateThumbstickEvent) &&
+        (this.lastTickTime - this.lastRotateTime < this.data.rotaterepeattime))) {
       return;
     }
 

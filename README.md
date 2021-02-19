@@ -214,6 +214,26 @@ Two events are generated, always on the target object.
 
 
 
+## Enabling / Disabling Controls
+
+Both types of control provide support for temporary disabling of controls.  The interface for this as follows:
+
+- For thumbstick controls, this is controlled on the target object
+- For 3D mouse controls, this is controlled on the proxy object
+
+The controls can be configured "disabled" at start of day by setting "disabled: true" on the thumbstick-object-controls or sixdof-control-proxy components.
+
+The controls can be enabled and disabled by emitting the events "controls-enabled" and "controls-disabled" on:
+
+- the target object, in the case of thumbstick controls
+- the proxy object, in the case of 3D mouse controls.
+
+In 3D mouse controls, when the controls are disabled, the proxy object ceases to be visible (unless in debug mode).  However grip and trigger states are still tracked, so if grip or trigger are held down while the controls are disabled, and are still held down when the controls are re-enabled, movement will begin again instantly, with no need to re-apply the relevant controls.
+
+Bespoke events "controls-enabled" and "controls-disabled" are used rather than the "pause" and "play" events on the target, so that other components on the target (e.g. animations, physics etc.) can continue to operate even when controls are disabled.
+
+
+
 ## Debugging
 
 The following debug capabilities have mostly been implemented for debugging problems with these components, but may also be useful for debugging applications that use these components.
