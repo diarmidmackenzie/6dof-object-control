@@ -134,11 +134,17 @@ AFRAME.registerComponent('sixdof-object-control', {
     console.log("PROXY ATTACHED----start taking position/rotation info from Proxy to Target");
 
     // calculating the offset to use when calculating target position from proxy position.
-    // Note, we assume target & proxy ar ein the same frame of reference.
-    // This is the *starting* offset.  It may not be fixed, as when we use "move" events,
-    // those events may not lead to actual movements of the target, due to collisions,
-    // boundaries etc.
-    // So we update offset
+    // Note, we assume target & proxy are in the same frame of reference.
+    // This is a *fixed* offset.
+    // In "direct" mode this is straightforward.  The offset enables us to map to
+    // the exact position of the target.
+    // In "events" mode, it's more subtle.  The offset enables us to map to a virtual
+    // position of the target.  We can use relative changes in this virtual position to
+    // tell us what events to pass to the object itself.  But these virtual positions
+    // may drift a long way from the true object position, due to e.g.
+    // - the object moving in space for other reasons.
+    // - move suggestions from this component not being implemented, due to collisions,
+    //   play area boundaries etc.
     this.offset = {'x': this.el.object3D.position.x - this.proxy.object3D.position.x,
                    'y': this.el.object3D.position.y - this.proxy.object3D.position.y,
                    'z': this.el.object3D.position.z - this.proxy.object3D.position.z}
@@ -190,6 +196,8 @@ AFRAME.registerComponent('sixdof-object-control', {
       // the controlled target is not moved in response to a "move" event)
       //
       // The positions calculated here are absolute new positions, not deltas.
+      // However in "events" mode the true object position might be quite different
+      // from this calculated position, as per comments above (see offset initialization).
       const sx = this.targetPositionFromProxy(x, this.offset.x, this.gridReference.x);
       const sy = this.targetPositionFromProxy(y, this.offset.y, this.gridReference.y);
       const sz = this.targetPositionFromProxy(z, this.offset.z, this.gridReference.z);
@@ -253,24 +261,32 @@ AFRAME.registerComponent('sixdof-object-control', {
       // There has been some movement.
       changed = true;
 
-      // event Data contains the new position.
-      // Don't assume (x, y, z) is the correct absolute position,
-      // since the target may be under influences other than this controller.
-      // Determine the "drift" of the target vs. what we expect, and factor this
-      // into the position we report.
-      var drift = this.el.object3D.position.clone();
-      drift.sub(this.lastReportedPosition);
+      // Together with our "move" event, we need to provide a new location.
+      // But we can't use x, y, z as the actual object position, as in "events"
+      // mode the object is not under our full control and its position may be
+      // affected by other factors.
+
+      // So we take the difference between x, y, z and lastReportedPosition,
+      // and apply this as a delta to the true current position.
+
+      // We don't try to track the true current position - we just use it
+      // instantaneously at this point to allow us to provide a "new position"
+      // that is correct relative to the object's position right now.
 
       var eventData = new THREE.Vector3(x, y, z);
-      eventData.add(drift);
+
+      eventData.x -= this.lastReportedPosition.x;
+      eventData.y -= this.lastReportedPosition.y;
+      eventData.z -= this.lastReportedPosition.z;
+      eventData.add(this.el.object3D.position);
+
       this.el.emit("move", eventData);
 
       // Update record of the position we reported, and update our offset to
       // reflect the drift.
-      copyXYZ(eventData, this.lastReportedPosition);
-      this.offset.x += drift.x;
-      this.offset.y += drift.y;
-      this.offset.z += drift.z;
+      this.lastReportedPosition.x = x;
+      this.lastReportedPosition.y = y;
+      this.lastReportedPosition.z = z;
     }
 
     return(changed);
