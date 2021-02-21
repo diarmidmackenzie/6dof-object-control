@@ -189,9 +189,12 @@ Further config options are available as follows.
 
 * movestick: the ID of a controller object with a thumbstick to be used to control movement.  Default: "#lhand".
 * rotatestick: the ID of a controller object with a thumbstick to be used to control rotation.  Default: "#rhand".
-
 * moverepeattime: number of msecs between repeated movements, when the movement thumbstick is held in a "move" position.  Default 250msecs.  For smaller values of posunit (i.e. finer grained movement), you will probably want to reduce this to a lower value, but note that once this is configured below the tick rate (approx 90/second, or 11 msecs) further reductions in the value won't make any difference.
 * rotaterepeattime: number of msecs between repeated rotations, when the rotation thumbstick is held in a "rotate" position.  Default 250msecs.  As with moverepeattime, for smaller values of rotunit (i.e. finer grained rotation), you will probably want to reduce this to a lower value.
+* singleaxis: Only allow movement in a single axis at a time.  Default is false.
+* keepremainder: When only single axis movement is allowed, is the remainder carried over, and applied to the next movement?  If true, off-axis movements will tend to lead to movements in both axes in turn.  If false, off-axis movement will result in only movement in the dominant axis.
+* axes: Limits movement to a subset of the possible axes (X, Y or Z).  Axes to be included must be specified in upper case.  Default: XYZ (all movement permitted)
+* sensitivity: What proportion of the thumstick's movement range is needed to trigger a movement?  This needs to allow for thumstick movement being incomplete & off-axis, and the controller itself also being off-axis. Particularly where movement is single-axis, and axis-locked, it may be useful to set this to a slightly lower value. Default: 0.5.
 
 The following settings are identical to sixdof-object-control component - see above for descriptions and notes:
 

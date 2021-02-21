@@ -1,0 +1,62 @@
+<!--Thumbstick controls.  Movement in Y axis locked. -->
+
+<html>
+  <head>
+    <title>Basic Thumbstick Controls test</title>
+    <script src="https://aframe.io/releases/1.1.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/diarmidmackenzie/key-bindings@v0.2-alpha/key-bindings.min.js"></script>
+    <script src="https://unpkg.com/aframe-event-set-component@4.2.1/dist/aframe-event-set-component.min.js"></script>
+    <script src="../../src/thumbstick-object-control.js"></script>
+    <script src="../../src/keyboard-hand-controls.js"></script>
+  </head>
+  <body>
+    <a-scene>
+      <!-- Asset for Target Object -->
+      <a-asset-item id="triceratops"
+        src="https://cdn.aframe.io/examples/ar/models/triceratops/scene.gltf"
+        response-type="arraybuffer" crossorigin="anonymous">
+      </a-asset-item>
+      <a-entity id="rig" movement-controls>
+        <a-text id="log-panel1" value="Target Data" position="5 2 -8" color="grey"></a-text>
+        <a-text id="log-panel2" value="R Hand Keyboard Data" position="-2 3 -7" color="grey"></a-text>
+        <a-text id="log-panel3" value="L Hand Keyboard Sim Data" position="-7 3 -7" color="grey"></a-text>
+        <a-text value="Press Left Shift or Right Shift to choose a controller.\n
+                       Press C or V to select Thumbstick x or y,\n
+                       then -/= to move in that direction.\n
+                       Also, use 4/5/6 to re-orient controller\n
+                       to test effect of thumbstick moves\n
+                       at different orientations."
+                       position="-7 -1 -5" color="grey"></a-text>
+        <a-camera position="0 1.6 0" look-controls>
+        </a-camera>
+        <a-entity id="lhand"
+            keyboard-hand-controls="logger:#log-panel3"
+            key-bindings="debug:true;bindings:ShiftLeft=enable,ShiftRight=disable"
+            visible="true"
+            event-set__pause="_target:#lhandstick;_event:disable; material.color: grey"
+            event-set__play="_target:#lhandstick;_event:enable; material.color: red"
+            position="-0.2 1.3 -0.4">
+            <a-box id="lhandstick" scale="0.05 0.3 0.05" material="color:red">
+            </a-box>
+        </a-entity>
+        <a-entity id="rhand"
+            keyboard-hand-controls="logger:#log-panel2"
+            key-bindings="bindings:ShiftRight=enable,ShiftLeft=disable"
+            visible="true"
+            event-set__pause="_target:#rhandstick;_event:disable; material.color: grey"
+            event-set__play="_target:#rhandstick;_event:enable; material.color: red"
+            position="0.2 1.3 -0.4">
+            <a-box id="rhandstick" scale="0.05 0.3 0.05" material="color:red">
+            </a-box>
+        </a-entity>
+      </a-entity>
+
+      <!-- Target Object -->
+      <!-- "target" matches default for target parameter-->
+      <a-entity id="target" position="0 1.3 -1.1" thumbstick-object-control="logger:#log-panel1;debug:true;axes:XZ" gltf-model="#triceratops"
+                  scale="0.002 0.002 0.002">
+      </a-entity>
+    </a-scene>
+  </body>
+</html>

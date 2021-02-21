@@ -48,6 +48,23 @@ AFRAME.registerComponent('thumbstick-object-control', {
 *                 Event data includes both the Euler Angles & the Quaternion
 *                 representation of the rotation.
 *                 This is an absolute new rotation (from zero), not a delta.
+* singleaxis: Only allow movement in a single axis at a time.  Default is false.
+* keepremainder: When only single axis movement is allowed, is the remainder
+*                carried over, and applied to the next movement?  If true, off-
+*                axis movements will tend to lead to movements in both axes in turn.
+*                if false, off-axis movement will result in only movement
+*                in the dominant axis.  Default is false (but only meaningful
+*                when "singleaxis" is set.)
+* axes: Limits movement to a subset of the possible axes.  Axes to be included
+*                must be specified in upper case.
+*                Default: XYZ (all movement permitted)
+* sensitivity: Range 0 to 1.  What proportion of the thumbstick's movement range
+*              is needed to trigger a movement?  This needs to allow for
+*              thumbstick movement being incomplete & off-axis, and the
+*              controller itself also being off-axis.
+*              Particularly where movement is single-axis, and axis-locked, it
+*              may be useful to set this to a slightly lower value. Default: 0.5.
+*
 * disabled: Whether the controls are disabled at start of day.  Default: false.
 *          Disabled controls can be enabled by emitting the
 *          controls-enabled event on this object.
@@ -64,6 +81,10 @@ AFRAME.registerComponent('thumbstick-object-control', {
     moverepeattime: {type: 'number', default: 250},
     rotaterepeattime: {type: 'number', default: 250},
     movement:    {type: 'string', default: "direct"},
+    singleaxis:  {type: 'boolean', default: false},
+    keepremainder: {type: 'boolean', default: false},
+    axes:        {type: 'string', default: "XYZ"},
+    sensitivity: {type: 'number', default: 0.5},
     disabled: {type: 'boolean', default: false}
   },
 
@@ -96,6 +117,7 @@ AFRAME.registerComponent('thumbstick-object-control', {
     this.lastRotateTime = 0;
     this.lastRotateThumbstickEvent = null;
     this.disabled = this.data.disabled;
+    this.remainder = new THREE.Vector3(0, 0, 0);
 
     // debug info
     if (this.data.debug) {
@@ -162,6 +184,10 @@ AFRAME.registerComponent('thumbstick-object-control', {
 
     // Update enabled/disabled state.
     this.disabled = this.data.disabled;
+
+    this.xLocked = (this.data.axes.search("X") == -1);
+    this.yLocked = (this.data.axes.search("Y") == -1);
+    this.zLocked = (this.data.axes.search("Z") == -1);
 
     this.attachEventListeners();
   },
@@ -264,9 +290,8 @@ AFRAME.registerComponent('thumbstick-object-control', {
     // are in fact in the x & z directions.
     this.thumbstickVector.set(event.detail.x, 0, event.detail.y);
 
-    if (this.thumbstickVector.length() < 0.5) {
+    if (this.thumbstickVector.length() < this.data.sensitivity) {
       // Movement too small to trigger a movement
-      // (## consider making this threshold configurable)
       this.thumbstickVector.set(0, 0, 0);
       return(false);
     }
@@ -295,27 +320,90 @@ AFRAME.registerComponent('thumbstick-object-control', {
     // Assumes thumbstick vector is now in the frame of reference of the target.
     // It is significant (not close to zero), but not normalized.
     // However it may be insignificant in some X, Y & Z directions.
-    // We move zero or one grid unit in each of X, Y & Z, depending on whether
-    // the component in that direction is significant.
+
+    // First, limit movement to legal axes, pare down to a single axis if
+    // necessary, and save any remainders as contibutions to the next movement.
+    if (this.xLocked) {
+      this.thumbstickVector.x = 0;
+    }
+    if (this.yLocked) {
+      this.thumbstickVector.y = 0;
+    }
+    if (this.zLocked) {
+      this.thumbstickVector.z = 0;
+    }
+
+    // Of the movement that remains, we may have to strip down further.
+    if (this.data.singleaxis) {
+      // Only move on one axis at a time.
+      // So reduce the vector to the dominant axis.
+      // Also take account of remainders, if configured to do so.
+
+      this.thumbstickVector.add(this.remainder);
+      const x = Math.abs(this.thumbstickVector.x);
+      const y = Math.abs(this.thumbstickVector.y);
+      const z = Math.abs(this.thumbstickVector.z);
+
+      if ((x > y) && (x > z)) {
+        // x dominant.
+        this.remainder.y = this.thumbstickVector.y;
+        this.remainder.z = this.thumbstickVector.z;
+        this.remainder.x = 0;
+        this.thumbstickVector.y = 0;
+        this.thumbstickVector.z = 0;
+      }
+      else if ((y > x) && (z > x)){
+         // y dominant.
+         this.remainder.x = this.thumbstickVector.x;
+         this.remainder.z = this.thumbstickVector.z;
+         this.remainder.y = 0;
+         this.thumbstickVector.x = 0;
+         this.thumbstickVector.z = 0;
+       }
+       else {
+         //z dominant
+         this.remainder.x = this.thumbstickVector.x;
+         this.remainder.y = this.thumbstickVector.y;
+         this.remainder.z = 0;
+         this.thumbstickVector.x = 0;
+         this.thumbstickVector.y = 0;
+       }
+
+       // We calculated a remainder.  But we may not be configured to keep it.
+       if (!this.data.keepremainder) {
+         this.remainder.set(0, 0, 0);
+       }
+    }
+
+    // We now move zero or one grid unit in each of X, Y & Z, depending on
+    // whether the component in that direction is significant.
     this.moveVector.set(this.moveDistFromComponent(this.thumbstickVector.x),
                         this.moveDistFromComponent(this.thumbstickVector.y),
                         this.moveDistFromComponent(this.thumbstickVector.z));
 
-    if (this.moveTarget) {
-      this.el.object3D.position.add(this.moveVector);
-    }
+    // After all the processing above, we may be left with a zero vector.
+    // We only have a movement if it's non-zero.
+    // manhattenLength ought to be the most effecient length measure to use for
+    // this check.
+    if (this.moveVector.manhattanLength() > 0) {
 
-    if (this.emitEvents) {
-      this.reportPosition.copy(this.el.object3D.position)
-      this.reportPosition.add(this.moveVector);
-      this.el.emit("move", this.reportPosition);
+      if (this.moveTarget) {
+        this.el.object3D.position.add(this.moveVector);
+      }
+
+      if (this.emitEvents)
+       {
+        this.reportPosition.copy(this.el.object3D.position)
+        this.reportPosition.add(this.moveVector);
+        this.el.emit("move", this.reportPosition);
+      }
     }
   },
 
   moveDistFromComponent: function(component) {
 
     var distance = 0;
-    if (Math.abs(component) > 0.5) {
+    if (Math.abs(component) > this.data.sensitivity) {
       distance = Math.sign(component) * this.data.posunit;
 
     }
@@ -413,7 +501,7 @@ AFRAME.registerComponent('thumbstick-object-control', {
     }
 
     /* In practice, doing anything on Tick is unecessary.
-       seems to be impossible to hold a thumstick in position
+       seems to be impossible to hold a thumbstick in position
        without generating a stream of thumbstickmoved events...
     if ((this.lastMoveThumbstickEvent) &&
         (time - this.lastMoveTime > this.data.moverepeattime))
@@ -423,7 +511,7 @@ AFRAME.registerComponent('thumbstick-object-control', {
       // us to repeat the movement.
       // Note this may not repeat the exact movement, as it's possible that
       // the controller itself has moved in this time, in which case the same
-      // thumstick movement will be interpreted as a different target movement.
+      // thumbstick movement will be interpreted as a different target movement.
       this.moveThumbstickMoved(this.lastMoveThumbstickEvent)
     }
 
@@ -435,7 +523,7 @@ AFRAME.registerComponent('thumbstick-object-control', {
       // us to repeat the movement.
       // Note this may not repeat the exact movement, as it's possible that
       // the controller itself has moved in this time, in which case the same
-      // thumstick movement will be interpreted as a different target movement.
+      // thumbstick movement will be interpreted as a different target movement.
       this.rotateThumbstickMoved(this.lastRotateThumbstickEvent)
     } */
   },
