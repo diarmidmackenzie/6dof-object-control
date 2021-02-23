@@ -82,23 +82,13 @@ AFRAME.registerComponent('sixdof-object-control', {
     // State tracking.  We attach when we receive an "attach" event from the
     // proxy component.
     this.attached = false;
+    this.gridReference = new THREE.Vector3(0, 0, 0);
 
     // Last position reported state.
     // This is used to determine what position & rotation events to pass
     // into the game engine.
     this.lastReportedPosition = {'x': 0, 'y': 0, 'z': 0};
     this.lastReportedRotation = {'x': 0, 'y': 0, 'z': 0};
-
-    copyXYZ(this.el.object3D.position, this.lastReportedPosition);
-    copyXYZ(this.el.object3D.rotation, this.lastReportedRotation);
-
-    if (this.data.posgrid == "absolute") {
-      this.gridReference = new THREE.Vector3(0, 0, 0)
-    }
-    else {
-      this.gridReference = this.el.object3D.position.clone();
-    }
-
 
     // Event listeners...
     this.listeners = {
@@ -109,6 +99,7 @@ AFRAME.registerComponent('sixdof-object-control', {
   },
 
   update: function () {
+
     // Store rotation unit in Radians, for use internally.
     this.rotationUnit = (Math.PI * this.data.rotunit) / 180;
 
@@ -129,6 +120,17 @@ AFRAME.registerComponent('sixdof-object-control', {
   },
 
   attachToProxy: function () {
+
+    // Get latest data from object.
+    // This may have changed since initialization, due to various reasons:
+    // - other influences on the object
+    // - other control mechanisms
+    // - object snapping to a grid position from it's original spawn position.
+    if (this.data.posgrid !== "absolute") {
+      this.gridReference.copy(this.el.object3D.position);
+    }
+    copyXYZ(this.el.object3D.position, this.lastReportedPosition);
+    copyXYZ(this.el.object3D.rotation, this.lastReportedRotation);
 
     this.attached = true;
     console.log("PROXY ATTACHED----start taking position/rotation info from Proxy to Target");
